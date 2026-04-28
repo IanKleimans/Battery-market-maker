@@ -147,17 +147,6 @@ class XGBoostLMPForecaster:
         )
         return self.metrics
 
-    def _features_at(
-        self,
-        history_window: np.ndarray,
-        target_ts: pd.Timestamp,
-    ) -> np.ndarray:
-        """Build a single feature row for a target timestamp."""
-        sin, cos = _hour_sincos(pd.DatetimeIndex([target_ts]))
-        dow = _dow_one_hot(pd.DatetimeIndex([target_ts]))
-        feat = np.concatenate([history_window, sin, cos, dow.flatten()])
-        return feat[None, :]
-
     def predict_horizon(
         self,
         history: pd.Series,
@@ -166,15 +155,9 @@ class XGBoostLMPForecaster:
     ) -> pd.Series:
         """Iteratively predict ``horizon_steps`` future LMPs.
 
-        Parameters
-        ----------
-        history
-            Tz-aware LMP series ending immediately before the forecast window.
-            The last ``LAG`` values are used as the seed lag window.
-        horizon_steps
-            Number of future intervals to predict.
-        freq
-            Settlement-interval spacing.
+        We pre-compute the (sin, cos, dow) calendar features for the entire
+        horizon up front so the inner loop only has to slide the lag window
+        and call ``model.predict`` once per step.
         """
         if self.model is None:
             raise RuntimeError("Forecaster must be fit() before predict_horizon().")
@@ -187,15 +170,21 @@ class XGBoostLMPForecaster:
         future_idx = pd.date_range(
             start=last_ts + freq, periods=horizon_steps, freq=freq, tz=history.index.tz
         )
+        sin, cos = _hour_sincos(future_idx)
+        dow = _dow_one_hot(future_idx)
+        cal = np.concatenate([sin[:, None], cos[:, None], dow], axis=1)  # (H, 9)
 
         window = history.to_numpy(dtype=float)[-_LAG:].copy()
         preds = np.zeros(horizon_steps, dtype=float)
+        feat = np.empty((1, _LAG + 9), dtype=float)
         for step in range(horizon_steps):
-            feat = self._features_at(window, future_idx[step])
+            feat[0, :_LAG] = window
+            feat[0, _LAG:] = cal[step]
             yhat = float(self.model.predict(feat)[0])
             preds[step] = yhat
-            # Slide the window forward
-            window = np.concatenate([window[1:], [yhat]])
+            # Slide the window forward in place
+            window[:-1] = window[1:]
+            window[-1] = yhat
         return pd.Series(preds, index=future_idx, name="lmp_forecast")
 
 

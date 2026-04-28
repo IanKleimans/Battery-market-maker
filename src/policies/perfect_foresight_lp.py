@@ -98,6 +98,7 @@ def _build_problem(
 
     e0 = battery.E_initial if E_initial is None else float(E_initial)
 
+    # Vectorised transition: E[1:] == E[:T] + eta_c*c*dt - d*dt/eta_d
     constraints = [
         c <= battery.P_max,
         d <= battery.P_max,
@@ -106,14 +107,11 @@ def _build_problem(
         E[0] == e0,
         E >= 0.0,
         E <= battery.E_max,
+        E[1:]
+        == E[:T]
+        + battery.eta_c * c * inputs.dt_hours
+        - d * inputs.dt_hours / battery.eta_d,
     ]
-    for t in range(T):
-        constraints.append(
-            E[t + 1]
-            == E[t]
-            + battery.eta_c * c[t] * inputs.dt_hours
-            - d[t] * inputs.dt_hours / battery.eta_d
-        )
     if terminal_E is not None:
         constraints.append(E[T] == float(terminal_E))
 
