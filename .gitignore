@@ -1,0 +1,38 @@
+# Data
+data/
+!data/.gitkeep
+
+# Figures (regenerable)
+figures/*.png
+figures/*.pdf
+
+# Build / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated docs
+report/*.pdf
+slides/*.pdf
+slides/*.html
