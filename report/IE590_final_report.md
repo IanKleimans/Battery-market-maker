@@ -219,31 +219,42 @@ LMP peaks but can always bid the full 50 MW into the regulation market.
 
 ![Revenue by policy](../figures/fig2_revenue_comparison.png)
 
-| Policy | Total revenue | Energy | Reg | Degradation | $/kW-yr |
-|--------|---------------|--------|-----|-------------|---------|
-| Perfect-foresight LP | (see Fig 2) | (see Fig 4) | (see Fig 4) | (see Fig 4) | (see Fig 2) |
-| MPC (XGBoost, $H{=}96$) | (see Fig 2) | (see Fig 4) | (see Fig 4) | (see Fig 4) | (see Fig 2) |
-| Myopic-greedy | (see Fig 2) | (see Fig 4) | (see Fig 4) | (see Fig 4) | (see Fig 2) |
+**Table 1.** Seven-day synthetic-data revenue, with annualised $/kW-yr at
+$P^{\max}=50$ MW.
 
-(Concrete numbers populate when the figures are regenerated; see
-`figures/captions.md` for the exact values written by `make figures`.)
+| Policy | Total revenue | Energy | Regulation | Degradation | $/kW-yr |
+|--------|--------------:|-------:|-----------:|------------:|--------:|
+| Perfect-foresight LP    | \$136,731 | \$23,026 | \$115,708 | \$2,003 | 142.6 |
+| MPC (XGBoost, $H{=}96$) | \$133,280 | \$6,003  | \$127,967 | \$689   | 139.0 |
+| Myopic-greedy           | \$132,710 | \$2,005  | \$130,797 | \$92    | 138.4 |
 
-The published CAISO 2022 figure of $\sim\$114/\text{kW-yr}$ for
-co-optimised storage provides a useful benchmark.  Our PF-LP values on
-synthetic data are in the same order of magnitude when annualised; on real
-PJM West Hub data we expect to fall in the same band, with myopic
-recovering roughly half of PF-LP's value.
+The XGBoost forecaster reaches a test-set RMSE of $\$4.45/$MWh (MAPE $14.7$%)
+on 80/20 chronological split.  The published CAISO 2022 figure of
+$\sim\$114/\text{kW-yr}$ for co-optimised storage provides a useful
+benchmark; the synthetic data here over-states the regulation share (mean
+reg cap price calibrated at $40$% of LMP, which is high for PJM in normal
+periods), so the absolute $/kW-yr$ values run hot.  When real PJM West Hub
+data is loaded the same code paths regenerate the table with realistic
+proportions.
+
+The interesting structural finding is in the *spread*: PF-LP earns
+\$4,021 above myopic over the week, of which MPC with a 96-step (8 hr)
+look-ahead recovers \$570 — about 14 % of the achievable gap.  The
+remaining gap is forecast-limited, not solver-limited (see §6.5).
 
 ## 6.3 MPC convergence to perfect foresight (Figure 3)
 
 Figure 3 shows the optimality gap $g(\pi) = (V_\pi - V_\text{greedy}) /
 (V_\text{PF} - V_\text{greedy})$ as a function of MPC look-ahead horizon
 for $H \in \{1, 6, 24, 48, 96, 288\}$.  At $H = 1$ MPC degenerates to
-myopic ($g \approx 0$); at $H = 288$ (24 h) the controller sees the full
-diurnal arbitrage cycle and approaches the upper bound.  Most of the value
-appears between $H = 24$ and $H = 96$, suggesting that a 2–8-hour
-look-ahead is the right operating point for production deployment when
-forecast quality degrades quickly with horizon.
+myopic ($g = 0$); the gap rises monotonically with horizon and reaches
+$\approx 0.45$ at $H = 288$ (24 h).  The fact that even a 24-hour
+look-ahead leaves about half the achievable spread on the table reflects
+the iterative-prediction error of the XGBoost forecaster: each successive
+step compounds error so the planning LP increasingly mis-times the
+synthetic price spikes.  A forecaster that consumed exogenous covariates
+(load, weather, gas spot) would close more of this gap, as Figure 5
+confirms.
 
 ![Optimality gap vs MPC horizon](../figures/fig3_gap_vs_horizon.png)
 
