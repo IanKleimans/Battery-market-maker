@@ -114,7 +114,7 @@ export function TimeScrubber({ result }: { result: MultiPeriodSolution }) {
             <RadixSlider.Range className="absolute rounded-full h-full bg-accent/70" />
           </RadixSlider.Track>
           <RadixSlider.Thumb
-            className="block w-5 h-5 bg-white border-2 border-accent rounded-full shadow-card cursor-grab active:cursor-grabbing"
+            className="block w-5 h-5 bg-text-1 border-2 border-accent rounded-full shadow-card cursor-grab active:cursor-grabbing"
             aria-label="Scrubber"
           />
         </RadixSlider.Root>

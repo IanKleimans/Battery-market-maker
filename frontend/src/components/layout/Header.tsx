@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { Battery, GitFork } from 'lucide-react'
-import { Badge } from '@/components/ui'
+import { Badge, ThemeToggle } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
 const navItems = [
@@ -55,6 +55,8 @@ export function Header() {
         <Badge tone="success" className="hidden md:inline-flex">
           v2.0
         </Badge>
+
+        <ThemeToggle />
 
         <a
           href="https://github.com/"

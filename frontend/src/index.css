@@ -9,15 +9,47 @@
 @tailwind utilities;
 
 @layer base {
+  /* Default = dark.  The inline script in index.html flips `.light` on the
+     <html> element before paint, so users with a saved or system-preferred
+     light setting never see a flash of dark. */
   :root {
-    --bg: 6 8 15;
-    --surface: 12 18 33;
-    --surface-hover: 17 26 47;
-    --border: 22 32 64;
-    --text-1: 241 245 249;
-    --text-2: 100 116 139;
-    --accent: 37 99 235;
+    --color-bg: 6 8 15;
+    --color-surface: 12 18 33;
+    --color-surface-hover: 17 26 47;
+    --color-border: 22 32 64;
+    --color-text-1: 241 245 249;
+    --color-text-2: 100 116 139;
+    --color-text-3: 51 65 85;
+    --color-accent: 37 99 235;
+    --color-accent-hover: 29 78 216;
+    --color-success: 16 185 129;
+    --color-warning: 245 158 11;
+    --color-danger: 239 68 68;
+
+    /* Network diagram + chart helpers — see lib/theme.tsx for matching JS values */
+    --color-grid-dot: 22 32 64;
+    --color-axis-line: 100 116 139;
+    --color-grid-line: 22 32 64;
+
     color-scheme: dark;
+  }
+
+  :root.light {
+    --color-bg: 248 250 252;          /* slate-50 */
+    --color-surface: 255 255 255;     /* white */
+    --color-surface-hover: 241 245 249;/* slate-100 */
+    --color-border: 226 232 240;      /* slate-200 */
+    --color-text-1: 15 23 42;         /* slate-900 */
+    --color-text-2: 71 85 105;        /* slate-600 */
+    --color-text-3: 148 163 184;      /* slate-400 */
+    /* accent / success / warning / danger stay identical so charts and
+       status colors are consistent across modes. */
+
+    --color-grid-dot: 203 213 225;    /* slate-300 */
+    --color-axis-line: 100 116 139;   /* slate-500 */
+    --color-grid-line: 226 232 240;   /* slate-200 */
+
+    color-scheme: light;
   }
 
   html, body, #root {
@@ -30,11 +62,26 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
+  /* Smooth color transitions, but only while the user is actively switching
+     themes — applied via a class added briefly in the theme provider so we
+     don't override component-level hover transitions on every interaction. */
+  .theme-transitioning,
+  .theme-transitioning *,
+  .theme-transitioning *::before,
+  .theme-transitioning *::after {
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease,
+      color 200ms ease,
+      fill 200ms ease,
+      stroke 200ms ease !important;
+  }
+
   /* Subtle grid background pattern matching the simulator */
   .grid-bg {
     background-image: radial-gradient(
       circle at center,
-      theme('colors.border') 1px,
+      rgb(var(--color-grid-dot)) 1px,
       transparent 1px
     );
     background-size: 24px 24px;
@@ -45,11 +92,11 @@
   }
 
   ::selection {
-    background: theme('colors.accent.DEFAULT');
-    color: theme('colors.text.1');
+    background: rgb(var(--color-accent));
+    color: rgb(var(--color-text-1));
   }
 
-  /* Scrollbar — subtle, matching dark surface */
+  /* Scrollbar — subtle, theme-aware */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -58,11 +105,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: theme('colors.border');
+    background: rgb(var(--color-border));
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: theme('colors.text.3');
+    background: rgb(var(--color-text-3));
   }
 }
 
@@ -72,21 +119,14 @@
     font-feature-settings: 'zero', 'ss01';
   }
 
-  .reduced-motion {
-    @media (prefers-reduced-motion: reduce) {
-      animation: none !important;
-      transition: none !important;
-    }
-  }
-
   /* Skeleton shimmer for loading states */
   .skeleton {
     @apply rounded;
     background: linear-gradient(
       90deg,
-      theme('colors.surface') 0%,
-      theme('colors.surface-hover') 50%,
-      theme('colors.surface') 100%
+      rgb(var(--color-surface)) 0%,
+      rgb(var(--color-surface-hover)) 50%,
+      rgb(var(--color-surface)) 100%
     );
     background-size: 1000px 100%;
     animation: shimmer 1.6s linear infinite;
@@ -95,6 +135,12 @@
   @media (prefers-reduced-motion: reduce) {
     .skeleton {
       animation: none;
+    }
+    .theme-transitioning,
+    .theme-transitioning *,
+    .theme-transitioning *::before,
+    .theme-transitioning *::after {
+      transition: none !important;
     }
     *,
     *::before,

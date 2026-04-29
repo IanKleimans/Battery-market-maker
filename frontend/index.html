@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#06080f" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#06080f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
     <meta
       name="description"
       content="Battery Market Maker — interactive multi-period DC-OPF simulator with batteries, flexible AI data centers, and renewables on IEEE 5/14/30-bus test systems."
@@ -20,6 +21,29 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="/og.svg" />
     <title>Battery Market Maker</title>
+    <!--
+      Inline theme script — runs synchronously before paint so users with a
+      saved or system-preferred light setting never see a flash of dark.
+      Default = dark.  ThemeProvider in src/lib/theme.tsx reads from the
+      class set here.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme')
+          var sysLight =
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: light)').matches
+          var useLight =
+            stored === 'light' || (stored !== 'dark' && sysLight)
+          if (useLight) {
+            document.documentElement.classList.add('light')
+          }
+        } catch (e) {
+          /* no-op — fallback is dark */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

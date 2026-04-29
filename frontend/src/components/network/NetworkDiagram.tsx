@@ -22,6 +22,7 @@ import type {
 import { FUEL_COLORS, lmpColor, utilizationColor } from '@/lib/colors'
 import { formatLMP, formatMW, formatMWh, formatPct } from '@/lib/format'
 import { Tooltip } from '@/components/ui'
+import { useThemeColors, type ThemeColors } from '@/lib/theme'
 
 export interface FrameState {
   /** MW dispatch by generator id at this frame */
@@ -76,6 +77,7 @@ export function NetworkDiagram({
   baseline = false,
 }: NetworkDiagramProps) {
   const [hoverLine, setHoverLine] = useState<number | null>(null)
+  const colors = useThemeColors()
 
   // LMP color range for current frame
   const { lmpMin, lmpMax } = useMemo(() => {
@@ -151,7 +153,7 @@ export function NetworkDiagram({
       {/* Faint grid background */}
       <defs>
         <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <circle cx="20" cy="20" r="1" fill="#162040" />
+          <circle cx="20" cy="20" r="1" fill={colors.border} />
         </pattern>
         <filter id="glow">
           <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
@@ -182,6 +184,7 @@ export function NetworkDiagram({
               hovered={hoverLine === ln.id}
               onHover={(id) => setHoverLine(id)}
               baseline={baseline}
+              colors={colors}
             />
           )
         })}
@@ -225,6 +228,7 @@ export function NetworkDiagram({
                 (assets?.renewables.length ?? 0)
               }
               baseline={baseline}
+              colors={colors}
             />
           )
         })}
@@ -244,6 +248,7 @@ export function NetworkDiagram({
               soc={frame?.batterySOC?.[b.id] ?? 0.5}
               net={frame?.batteryNet?.[b.id] ?? 0}
               baseline={baseline}
+              colors={colors}
             />
           )
         })}
@@ -258,6 +263,7 @@ export function NetworkDiagram({
               y={bus.y - 22}
               util={frame?.dcUtil?.[d.id] ?? 0.7}
               baseline={baseline}
+              colors={colors}
             />
           )
         })}
@@ -272,6 +278,7 @@ export function NetworkDiagram({
               y={bus.y + 22}
               frac={frame?.renewFrac?.[r.id] ?? 0.5}
               baseline={baseline}
+              colors={colors}
             />
           )
         })}
@@ -293,6 +300,7 @@ interface NetworkLineProps {
   hovered: boolean
   onHover: (id: number | null) => void
   baseline: boolean
+  colors: ThemeColors
 }
 
 function NetworkLine({
@@ -306,8 +314,9 @@ function NetworkLine({
   hovered,
   onHover,
   baseline,
+  colors,
 }: NetworkLineProps) {
-  const color = baseline ? '#334155' : utilizationColor(utilization)
+  const color = baseline ? colors.text3 : utilizationColor(utilization)
   const thickness = baseline
     ? 2
     : Math.max(1.5, Math.min(7, 1.5 + Math.abs(flow) / 60))
@@ -427,6 +436,7 @@ interface NetworkBusProps {
   onClick: () => void
   assetCount: number
   baseline: boolean
+  colors: ThemeColors
 }
 
 function NetworkBus({
@@ -439,10 +449,15 @@ function NetworkBus({
   placementMode,
   onClick,
   baseline,
+  colors,
 }: NetworkBusProps) {
   const fill =
-    !baseline && lmp !== undefined ? lmpColor(lmp, lmpMin, lmpMax) : '#0c1221'
-  const stroke = bus.is_slack ? '#fde047' : selected ? '#2563eb' : '#162040'
+    !baseline && lmp !== undefined ? lmpColor(lmp, lmpMin, lmpMax) : colors.busFill
+  const stroke = bus.is_slack
+    ? '#fde047' /* slack always stands out */
+    : selected
+      ? colors.accent
+      : colors.busStroke
   const placementGlow = placementMode !== null
 
   return (
@@ -476,7 +491,7 @@ function NetworkBus({
             cy={bus.y}
             r={20}
             fill="none"
-            stroke="#2563eb"
+            stroke={colors.accent}
             strokeOpacity={0.5}
             strokeWidth={2}
             strokeDasharray="3,3"
@@ -501,7 +516,7 @@ function NetworkBus({
           x={bus.x}
           y={bus.y + 4}
           textAnchor="middle"
-          fill="#f1f5f9"
+          fill={baseline ? colors.text1 : '#ffffff'}
           fontSize={10}
           fontFamily="IBM Plex Mono, monospace"
           fontWeight={600}
@@ -513,7 +528,7 @@ function NetworkBus({
           x={bus.x}
           y={bus.y - 18}
           textAnchor="middle"
-          fill="#64748b"
+          fill={colors.text2}
           fontSize={9}
           fontFamily="IBM Plex Mono, monospace"
           pointerEvents="none"
@@ -532,6 +547,7 @@ function BatteryGlyph({
   soc,
   net,
   baseline,
+  colors,
 }: {
   bat: BatteryAsset
   x: number
@@ -539,6 +555,7 @@ function BatteryGlyph({
   soc: number
   net: number
   baseline: boolean
+  colors: ThemeColors
 }) {
   const fillFrac = baseline ? bat.initial_soc_mwh / bat.e_max_mwh : Math.max(0, Math.min(1, soc))
   const charging = net < -0.1
@@ -570,9 +587,9 @@ function BatteryGlyph({
       }
     >
       <g className="cursor-help">
-        <rect x={x - 7} y={y - 9} width={14} height={18} rx={2} fill="#06080f" stroke="#10b981" />
-        <rect x={x - 4} y={y + 9 - fillFrac * 16} width={8} height={fillFrac * 16} fill="#10b981" />
-        <rect x={x - 2.5} y={y - 12} width={5} height={3} fill="#10b981" />
+        <rect x={x - 7} y={y - 9} width={14} height={18} rx={2} fill={colors.bg} stroke={colors.success} />
+        <rect x={x - 4} y={y + 9 - fillFrac * 16} width={8} height={fillFrac * 16} fill={colors.success} />
+        <rect x={x - 2.5} y={y - 12} width={5} height={3} fill={colors.success} />
         {(charging || discharging) && (
           <circle cx={x + 9} cy={y - 9} r={2} fill={charging ? '#22d3ee' : '#fde047'}>
             <animate attributeName="r" values="1.5;3;1.5" dur="1s" repeatCount="indefinite" />
@@ -589,12 +606,14 @@ function DataCenterGlyph({
   y,
   util,
   baseline,
+  colors,
 }: {
   dc: DataCenterAsset
   x: number
   y: number
   util: number
   baseline: boolean
+  colors: ThemeColors
 }) {
   const u = baseline ? 0.7 : Math.max(0, Math.min(1, util))
   return (
@@ -614,7 +633,7 @@ function DataCenterGlyph({
       }
     >
       <g className="cursor-help">
-        <rect x={x - 9} y={y - 9} width={18} height={18} rx={2} fill="#06080f" stroke="#a855f7" />
+        <rect x={x - 9} y={y - 9} width={18} height={18} rx={2} fill={colors.bg} stroke="#a855f7" />
         {[0, 1, 2].map((i) => (
           <rect
             key={i}
@@ -622,7 +641,7 @@ function DataCenterGlyph({
             y={y - 7 + i * 5}
             width={14}
             height={3}
-            fill={i / 3 < u ? '#a855f7' : '#162040'}
+            fill={i / 3 < u ? '#a855f7' : colors.border}
           />
         ))}
       </g>
@@ -636,12 +655,14 @@ function RenewableGlyph({
   y,
   frac,
   baseline,
+  colors,
 }: {
   ren: RenewableAsset
   x: number
   y: number
   frac: number
   baseline: boolean
+  colors: ThemeColors
 }) {
   const f = baseline ? 0.5 : Math.max(0, Math.min(1, frac))
   const color = ren.kind === 'solar' ? '#fde047' : '#22d3ee'
@@ -662,7 +683,7 @@ function RenewableGlyph({
       }
     >
       <g className="cursor-help">
-        <circle cx={x} cy={y} r={9} fill="#06080f" stroke={color} />
+        <circle cx={x} cy={y} r={9} fill={colors.bg} stroke={color} />
         {ren.kind === 'solar' ? (
           <>
             <circle cx={x} cy={y} r={3 + f * 4} fill={color} />

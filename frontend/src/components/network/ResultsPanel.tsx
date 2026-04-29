@@ -25,6 +25,7 @@ import {
   formatHourLabel,
 } from '@/lib/format'
 import { useSimulator } from '@/store/simulator'
+import { useThemeColors } from '@/lib/theme'
 import type { MultiPeriodSolution, NetworkData } from '@/types/api'
 
 export function ResultsPanel({
@@ -70,6 +71,7 @@ function DispatchTab({
   network: NetworkData
 }) {
   const step = useSimulator((s) => s.scrubberStep)
+  const colors = useThemeColors()
   const data = useMemo(() => {
     const out: Array<Record<string, number | string>> = []
     for (let t = 0; t < result.n_timesteps; t++) {
@@ -108,37 +110,39 @@ function DispatchTab({
           <AreaChart data={data}>
             <XAxis
               dataKey="time"
-              stroke="#64748b"
+              stroke={colors.axisLabel}
               fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: '#162040' }}
+              axisLine={{ stroke: colors.gridLine }}
             />
             <YAxis
-              stroke="#64748b"
+              stroke={colors.axisLabel}
               fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: '#162040' }}
+              axisLine={{ stroke: colors.gridLine }}
               label={{
                 value: 'MW',
                 angle: -90,
                 position: 'insideLeft',
-                style: { fontSize: 10, fill: '#64748b' },
+                style: { fontSize: 10, fill: colors.axisLabel },
               }}
             />
             <RTooltip
               contentStyle={{
-                background: '#06080f',
-                border: '1px solid #162040',
+                background: colors.tooltipBg,
+                border: `1px solid ${colors.border}`,
                 borderRadius: 4,
                 fontSize: 11,
                 fontFamily: 'IBM Plex Mono',
+                color: '#f1f5f9',
               }}
               labelStyle={{ color: '#f1f5f9' }}
-              cursor={{ stroke: '#2563eb', strokeWidth: 1, strokeDasharray: '3 3' }}
+              itemStyle={{ color: '#f1f5f9' }}
+              cursor={{ stroke: colors.accent, strokeWidth: 1, strokeDasharray: '3 3' }}
             />
             <ReferenceLine
               x={data[step]?.time as string}
-              stroke="#2563eb"
+              stroke={colors.accent}
               strokeDasharray="3 3"
             />
             {fuels.map((g) => (
@@ -163,6 +167,8 @@ function DispatchTab({
 // ---------------- Storage ----------------
 
 function StorageTab({ result }: { result: MultiPeriodSolution }) {
+  const step = useSimulator((s) => s.scrubberStep)
+  const colors = useThemeColors()
   if (result.battery_trajectories.length === 0) {
     return (
       <Card>
@@ -172,7 +178,6 @@ function StorageTab({ result }: { result: MultiPeriodSolution }) {
       </Card>
     )
   }
-  const step = useSimulator((s) => s.scrubberStep)
 
   return (
     <div className="space-y-3">
@@ -191,25 +196,28 @@ function StorageTab({ result }: { result: MultiPeriodSolution }) {
             <div className="h-32">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                  <XAxis dataKey="time" stroke="#64748b" fontSize={9} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                  <XAxis dataKey="time" stroke={colors.axisLabel} fontSize={9} tickLine={false} />
+                  <YAxis stroke={colors.axisLabel} fontSize={9} tickLine={false} />
                   <RTooltip
                     contentStyle={{
-                      background: '#06080f',
-                      border: '1px solid #162040',
+                      background: colors.tooltipBg,
+                      border: `1px solid ${colors.border}`,
                       borderRadius: 4,
                       fontSize: 11,
+                      color: '#f1f5f9',
                     }}
+                    itemStyle={{ color: '#f1f5f9' }}
+                    labelStyle={{ color: '#f1f5f9' }}
                   />
                   <ReferenceLine
                     x={data[step]?.time as string}
-                    stroke="#2563eb"
+                    stroke={colors.accent}
                     strokeDasharray="3 3"
                   />
                   <RechartsLine
                     type="monotone"
                     dataKey="soc"
-                    stroke="#10b981"
+                    stroke={colors.success}
                     dot={false}
                     strokeWidth={2}
                     isAnimationActive={false}
@@ -223,24 +231,27 @@ function StorageTab({ result }: { result: MultiPeriodSolution }) {
             <div className="h-24">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                  <XAxis dataKey="time" stroke="#64748b" fontSize={9} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                  <XAxis dataKey="time" stroke={colors.axisLabel} fontSize={9} tickLine={false} />
+                  <YAxis stroke={colors.axisLabel} fontSize={9} tickLine={false} />
                   <RTooltip
                     contentStyle={{
-                      background: '#06080f',
-                      border: '1px solid #162040',
+                      background: colors.tooltipBg,
+                      border: `1px solid ${colors.border}`,
                       borderRadius: 4,
                       fontSize: 11,
+                      color: '#f1f5f9',
                     }}
+                    itemStyle={{ color: '#f1f5f9' }}
+                    labelStyle={{ color: '#f1f5f9' }}
                   />
-                  <ReferenceLine y={0} stroke="#162040" />
+                  <ReferenceLine y={0} stroke={colors.gridLine} />
                   <ReferenceLine
                     x={data[step]?.time as string}
-                    stroke="#2563eb"
+                    stroke={colors.accent}
                     strokeDasharray="3 3"
                   />
-                  <Bar dataKey="charge" fill="#ef4444" isAnimationActive={false} />
-                  <Bar dataKey="discharge" fill="#10b981" isAnimationActive={false} />
+                  <Bar dataKey="charge" fill={colors.danger} isAnimationActive={false} />
+                  <Bar dataKey="discharge" fill={colors.success} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

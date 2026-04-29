@@ -1,30 +1,39 @@
 /** @type {import('tailwindcss').Config} */
+//
+// Color tokens are CSS variables so a single class set works for both light
+// and dark themes.  See src/index.css for the actual variable definitions.
+//
+const cssVar = (name) => `rgb(var(--color-${name}) / <alpha-value>)`
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Manual `.light` toggle on <html> drives the theme — see src/lib/theme.tsx.
+  // We keep `darkMode: 'class'` for any explicit `dark:` utilities that show
+  // up in components down the line, but the var-based palette below means
+  // we generally don't need them.
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Match the realtime simulator palette exactly so existing
-        // screenshots and the embedded Classic mode look identical.
-        bg: '#06080f',
-        surface: '#0c1221',
-        'surface-hover': '#111a2f',
-        border: '#162040',
+        bg: cssVar('bg'),
+        surface: cssVar('surface'),
+        'surface-hover': cssVar('surface-hover'),
+        border: cssVar('border'),
         text: {
-          1: '#f1f5f9',
-          2: '#64748b',
-          3: '#334155',
+          1: cssVar('text-1'),
+          2: cssVar('text-2'),
+          3: cssVar('text-3'),
         },
         accent: {
-          DEFAULT: '#2563eb',
-          hover: '#1d4ed8',
+          DEFAULT: cssVar('accent'),
+          hover: cssVar('accent-hover'),
           glow: 'rgba(37, 99, 235, 0.25)',
         },
-        success: '#10b981',
-        warning: '#f59e0b',
-        danger: '#ef4444',
-        // Fuel colors used in the network diagram
+        success: cssVar('success'),
+        warning: cssVar('warning'),
+        danger: cssVar('danger'),
+        // Fuel colors are intentionally identical in both modes so charts
+        // remain comparable across screenshots and themes.
         fuel: {
           coal: '#737373',
           gas: '#f59e0b',

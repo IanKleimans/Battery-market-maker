@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/api/client'
 import { usePageMeta } from '@/hooks/usePageMeta'
+import { useThemeColors } from '@/lib/theme'
 import {
   Badge,
   Button,
@@ -55,6 +56,7 @@ export function Dashboard() {
     description:
       'Compare Perfect Foresight, MPC, and Myopic battery dispatch policies on PJM data.',
   })
+  const colors = useThemeColors()
   const [seed, setSeed] = useState(42)
   const [forecast, setForecast] = useState<ForecastType>('xgboost')
   const [horizon, setHorizon] = useState(24)
@@ -267,20 +269,23 @@ export function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={revenueSeries}>
-                  <CartesianGrid stroke="#162040" strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" stroke="#64748b" fontSize={10} />
+                  <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" />
+                  <XAxis dataKey="hour" stroke={colors.axisLabel} fontSize={10} />
                   <YAxis
-                    stroke="#64748b"
+                    stroke={colors.axisLabel}
                     fontSize={10}
                     tickFormatter={(v) => formatUSD(v as number)}
                   />
                   <RTooltip
                     contentStyle={{
-                      background: '#06080f',
-                      border: '1px solid #162040',
+                      background: colors.tooltipBg,
+                      border: `1px solid ${colors.border}`,
                       borderRadius: 4,
                       fontSize: 11,
+                      color: '#f1f5f9',
                     }}
+                    itemStyle={{ color: '#f1f5f9' }}
+                    labelStyle={{ color: '#f1f5f9' }}
                     formatter={(v, name) => [
                       typeof v === 'number' ? formatUSD(v, true) : String(v ?? '—'),
                       policyMeta[name as PolicyName]?.label ?? String(name),
@@ -320,22 +325,25 @@ export function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={decompositionData} layout="vertical">
-                  <CartesianGrid stroke="#162040" strokeDasharray="3 3" />
-                  <XAxis type="number" stroke="#64748b" fontSize={10} />
+                  <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" />
+                  <XAxis type="number" stroke={colors.axisLabel} fontSize={10} />
                   <YAxis
                     type="category"
                     dataKey="name"
-                    stroke="#64748b"
+                    stroke={colors.axisLabel}
                     fontSize={10}
                     width={70}
                   />
                   <RTooltip
                     contentStyle={{
-                      background: '#06080f',
-                      border: '1px solid #162040',
+                      background: colors.tooltipBg,
+                      border: `1px solid ${colors.border}`,
                       borderRadius: 4,
                       fontSize: 11,
+                      color: '#f1f5f9',
                     }}
+                    itemStyle={{ color: '#f1f5f9' }}
+                    labelStyle={{ color: '#f1f5f9' }}
                   />
                   <Legend />
                   <Bar dataKey="Energy" stackId="a" fill="#2563eb" />
@@ -361,13 +369,13 @@ export function Dashboard() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart>
-                <CartesianGrid stroke="#162040" strokeDasharray="3 3" />
+                <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" />
                 <XAxis
                   type="number"
                   dataKey="rmse"
                   name="Forecast RMSE"
                   unit=" $/MWh"
-                  stroke="#64748b"
+                  stroke={colors.axisLabel}
                   fontSize={10}
                 />
                 <YAxis
@@ -375,17 +383,20 @@ export function Dashboard() {
                   dataKey="gap_pct"
                   name="Optimality gap"
                   unit="%"
-                  stroke="#64748b"
+                  stroke={colors.axisLabel}
                   fontSize={10}
                 />
                 <ZAxis type="number" dataKey="z" range={[60, 200]} />
                 <RTooltip
                   contentStyle={{
-                    background: '#06080f',
-                    border: '1px solid #162040',
+                    background: colors.tooltipBg,
+                    border: `1px solid ${colors.border}`,
                     borderRadius: 4,
                     fontSize: 11,
+                    color: '#f1f5f9',
                   }}
+                  itemStyle={{ color: '#f1f5f9' }}
+                  labelStyle={{ color: '#f1f5f9' }}
                   formatter={(value, name) => {
                     const v = typeof value === 'number' ? value : 0
                     if (name === 'rmse') return [`${v.toFixed(3)} $/MWh`, 'RMSE']

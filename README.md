@@ -1,6 +1,6 @@
 # Battery Market Maker
 
-[![Backend tests](https://img.shields.io/badge/backend-30%20tests%20passing-success)]() [![Frontend tests](https://img.shields.io/badge/frontend-11%20tests%20passing-success)]() [![Research tests](https://img.shields.io/badge/research-69%20tests%20passing-success)]() [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)]()
+[![Backend tests](https://img.shields.io/badge/backend-30%20tests%20passing-success)]() [![Frontend tests](https://img.shields.io/badge/frontend-15%20tests%20passing-success)]() [![Research tests](https://img.shields.io/badge/research-69%20tests%20passing-success)]() [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
 Interactive multi-period DC-OPF for grid-scale batteries, flexible AI data centers,
 and renewables on the IEEE 5/14/30-bus test systems — with the original IE 590
@@ -81,8 +81,9 @@ Vercel to your Railway URL. Health check: `GET /health`.
 - [x] **v2.1.0-frontend-shell** — Vite + React + TS + Tailwind shell, design system
 - [x] **v2.2.0-pro-simulator** — D3 simulator with optimization mode
 - [x] **v2.3.0-dashboard** — SDP comparison dashboard + real PJM 2026 data
-- [ ] **v2.4.0-polish** — landing, About with KaTeX, docs, accessibility
-- [ ] **v3.0.0-deployed** — Railway + Vercel custom domain
+- [x] **v2.4.0-polish** — landing, About with KaTeX, docs, accessibility
+- [x] **v2.5.0-light-mode** — light/dark theme toggle, designed (not inverted) light palette
+- [x] **v3.0.0-deployed** — Railway + Vercel
 
 ## Math notation in code
 
@@ -96,6 +97,18 @@ Vercel to your Railway URL. Health check: `GET /health`.
 | `λ_{b,t}`   | `lmp`      | LMP at bus b, time t ($/MWh) — dual of nodal balance |
 | `u_{j,t}`   | `u`        | Data-center utilization fraction                     |
 | `ξ_{r,t}`   | `curtail`  | Renewable curtailment fraction                       |
+
+## Theme
+
+Dark by default — matches the original DC-OPF simulator's serious-energy-product
+aesthetic. A sun/moon toggle in the header switches to a fully designed light
+palette (off-white background, white surfaces, slate-900 text) — not just an
+inverted dark theme. Charts re-tint axis labels and gridlines for readability;
+data colors stay constant so figures remain comparable across modes. The choice
+persists in `localStorage` and respects `prefers-color-scheme` on first visit.
+Switch transitions are 200ms across `bg-color`, `border-color`, `color`, `fill`,
+and `stroke`, scoped to the switching event so component hover transitions stay
+crisp.
 
 ## Data
 
