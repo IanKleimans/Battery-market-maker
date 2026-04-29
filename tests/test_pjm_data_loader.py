@@ -104,6 +104,23 @@ def test_load_reg_prices(tmp_path: Path) -> None:
     assert df["reg_cap_price"].iloc[6] == 10.0  # within first hour, ffilled
 
 
+def test_load_reg_prices_post2025_schema(tmp_path: Path) -> None:
+    """Post-2025 PJM regulation redesign uses
+    capability_clearing_price / performance_clearing_price."""
+    fp = tmp_path / "reg.csv"
+    pd.DataFrame(
+        {
+            "datetime_beginning_ept": ["2026-04-01 00:00:00", "2026-04-01 01:00:00"],
+            "capability_clearing_price": [22.5, 24.0],
+            "performance_clearing_price": [0.5, 0.7],
+        }
+    ).to_csv(fp, index=False)
+    df = load_reg_prices(fp)
+    assert list(df.columns) == ["reg_cap_price", "reg_perf_price"]
+    assert df["reg_cap_price"].iloc[0] == 22.5
+    assert df["reg_perf_price"].iloc[0] == 0.5
+
+
 def test_align_lmp_and_reg() -> None:
     idx = pd.date_range("2024-06-01", periods=4, freq="5min", tz="UTC")
     lmps = pd.Series([20, 25, 30, 35], index=idx, name="lmp", dtype=float)

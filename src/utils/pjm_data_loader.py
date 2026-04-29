@@ -124,11 +124,20 @@ def load_rt_lmps(filepath: str | Path, pnode_id: int) -> pd.Series:
 def load_reg_prices(filepath: str | Path) -> pd.DataFrame:
     """Load PJM regulation clearing prices from a Data Miner 2 export.
 
-    Expected CSV columns (Data Miner 2 ``reg_market_results`` or similar):
+    Two schemas are supported transparently:
+
+    * **Pre-2025 schema**: ``rmccp`` / ``rmpcp`` (legacy two-product market).
+    * **Post-2025 redesign**: ``capability_clearing_price`` /
+      ``performance_clearing_price``.  The 2026 PJM RTO data lives under this
+      schema.
+
+    The function returns a single DataFrame whichever schema is present.
+
+    Expected columns (post-2025):
 
     * ``datetime_beginning_ept``
-    * ``rmccp`` (regulation market capability clearing price, $/MW-h)
-    * ``rmpcp`` (regulation market performance clearing price, $/MW-h)
+    * ``capability_clearing_price`` (regulation market capability clearing price, $/MW-h)
+    * ``performance_clearing_price`` (regulation market performance clearing price, $/MW-h)
 
     Returns
     -------
@@ -141,18 +150,27 @@ def load_reg_prices(filepath: str | Path) -> pd.DataFrame:
         raise FileNotFoundError(f"PJM regulation price file not found: {fp}")
 
     df = pd.read_csv(fp)
-    required = {"datetime_beginning_ept", "rmccp", "rmpcp"}
-    missing = required - set(df.columns)
-    if missing:
+
+    if {"capability_clearing_price", "performance_clearing_price"}.issubset(df.columns):
+        cap_col = "capability_clearing_price"
+        perf_col = "performance_clearing_price"
+    elif {"rmccp", "rmpcp"}.issubset(df.columns):
+        cap_col = "rmccp"
+        perf_col = "rmpcp"
+    else:
         raise ValueError(
-            f"{fp}: missing required columns {missing}; got {list(df.columns)}"
+            f"{fp}: missing regulation columns. Expected either "
+            "(capability_clearing_price, performance_clearing_price) or (rmccp, rmpcp); "
+            f"got {list(df.columns)}"
         )
+    if "datetime_beginning_ept" not in df.columns:
+        raise ValueError(f"{fp}: missing column datetime_beginning_ept; got {list(df.columns)}")
 
     df["_utc"] = _parse_ept_to_utc(df["datetime_beginning_ept"])
     df = df.sort_values("_utc").drop_duplicates(subset="_utc", keep="first")
 
-    cap = pd.Series(df["rmccp"].astype(float).to_numpy(), index=df["_utc"], name="reg_cap_price")
-    perf = pd.Series(df["rmpcp"].astype(float).to_numpy(), index=df["_utc"], name="reg_perf_price")
+    cap = pd.Series(df[cap_col].astype(float).to_numpy(), index=df["_utc"], name="reg_cap_price")
+    perf = pd.Series(df[perf_col].astype(float).to_numpy(), index=df["_utc"], name="reg_perf_price")
 
     # Regulation prices are hourly in PJM; expand onto 5-min grid by ffill
     full_idx = pd.date_range(cap.index.min(), cap.index.max() + pd.Timedelta("55min"),
@@ -181,6 +199,13 @@ def align_lmp_and_reg(
     return df
 
 
+# The default pnode is AEP-DAYTON HUB, the location backing the 2026 RT-LMP CSV
+# in ``data/pjm/rt_lmps.csv``.  Change to your pnode of choice when calling
+# ``load_rt_lmps`` with a different region.
+DEFAULT_PNODE_ID: int = 34497127  # AEP-DAYTON HUB
+DEFAULT_PNODE_NAME: str = "AEP-DAYTON HUB"
+
+
 def find_real_or_synthetic(data_dir: str | Path = "data/pjm") -> tuple[bool, str]:
     """Detect whether real PJM CSVs are present.
 
@@ -192,5 +217,5 @@ def find_real_or_synthetic(data_dir: str | Path = "data/pjm") -> tuple[bool, str
     """
     fp = Path(data_dir) / "rt_lmps.csv"
     if fp.exists():
-        return True, "Real PJM data"
+        return True, f"Real PJM data ({DEFAULT_PNODE_NAME})"
     return False, "Synthetic data (illustrative)"
