@@ -27,6 +27,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { api } from '@/api/client'
+import { usePageMeta } from '@/hooks/usePageMeta'
 import {
   Badge,
   Button,
@@ -49,6 +50,11 @@ const policyMeta: Record<PolicyName, { label: string; color: string }> = {
 }
 
 export function Dashboard() {
+  usePageMeta({
+    title: 'Dashboard',
+    description:
+      'Compare Perfect Foresight, MPC, and Myopic battery dispatch policies on PJM data.',
+  })
   const [seed, setSeed] = useState(42)
   const [forecast, setForecast] = useState<ForecastType>('xgboost')
   const [horizon, setHorizon] = useState(24)

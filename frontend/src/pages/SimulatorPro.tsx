@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import { Wand2, Sparkles, Loader2 } from 'lucide-react'
 import { api } from '@/api/client'
+import { usePageMeta } from '@/hooks/usePageMeta'
 import { useSimulator } from '@/store/simulator'
 import { useSolveSimulator } from '@/hooks/useSolveSimulator'
 import { useFrameState } from '@/hooks/useFrameState'
@@ -440,6 +441,12 @@ export function SimulatorPro() {
   const mode = useSimulator((s) => s.mode)
   const [params] = useSearchParams()
   const loadScenario = useSimulator((s) => s.loadScenario)
+
+  usePageMeta({
+    title: 'Pro Simulator',
+    description:
+      'IEEE 5/14/30-bus simulator with batteries, AI data centers, renewables, multi-period DC-OPF, and live LMPs.',
+  })
 
   // Load scenario from URL ?scenario=…
   useEffect(() => {

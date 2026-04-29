@@ -4,8 +4,14 @@ import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { api } from '@/api/client'
 import { Card, Skeleton, Badge } from '@/components/ui'
+import { usePageMeta } from '@/hooks/usePageMeta'
 
 export function Scenarios() {
+  usePageMeta({
+    title: 'Scenarios',
+    description:
+      '10 pre-built configurations demonstrating wind curtailment, AI-campus dispatch, congested corridors, and forecast stress tests.',
+  })
   const { data, isLoading, isError } = useQuery({
     queryKey: ['scenarios'],
     queryFn: api.listScenarios,

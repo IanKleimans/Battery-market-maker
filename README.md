@@ -1,79 +1,113 @@
-# IE 590 Final Project — Stochastic Dynamic Programming for Grid-Scale Battery Co-Optimization
+# Battery Market Maker
 
-**Author:** Ian Kleimans
-**Course:** IE 590 (Purdue), Dr. Andrew L. Liu
-**Topic:** Stochastic dynamic programming for a 100 MWh / 50 MW battery operating in PJM,
-co-optimizing real-time energy arbitrage and frequency-regulation services.
+[![Backend tests](https://img.shields.io/badge/backend-30%20tests%20passing-success)]() [![Frontend tests](https://img.shields.io/badge/frontend-11%20tests%20passing-success)]() [![Research tests](https://img.shields.io/badge/research-69%20tests%20passing-success)]() [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
-The project compares three policies — perfect-foresight LP (upper bound), myopic-greedy
-(lower bound), and model-predictive control (MPC) with an XGBoost LMP forecaster — and
-reports revenue, optimality gap, and a revenue decomposition between energy and regulation.
+Interactive multi-period DC-OPF for grid-scale batteries, flexible AI data centers,
+and renewables on the IEEE 5/14/30-bus test systems — with the original IE 590
+research code (Perfect Foresight / MPC / Myopic single-asset SDP) intact under
+`src/`.
 
-## Quickstart
+> **Try it live**: `https://battery-market-maker.com` *(Vercel + Railway)*
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template) &nbsp; [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+
+---
+
+## Architecture
+
+```
+┌──────────────────┐   HTTPS   ┌────────────────────────┐   sys.path   ┌──────────────┐
+│  Vercel          │ ────────▶ │  Railway               │ ───────────▶ │  src/        │
+│  (React + Vite)  │           │  FastAPI + cvxpy/HiGHS │              │  research    │
+│  frontend/       │ ◀──── WS ─┤  backend/              │              │  policies    │
+└──────────────────┘           └────────────────────────┘              └──────────────┘
+```
+
+* **`backend/`** — FastAPI service exposing IEEE topologies, multi- and single-period
+  DC-OPF (with batteries / AI campuses / renewables), the original SDP comparison,
+  scenario library, forecast quality, and a WebSocket progress streamer.
+* **`frontend/`** — Vite + React 19 + TypeScript + Tailwind. The Pro simulator is
+  a three-panel optimization workspace; the Classic simulator preserves the original
+  vanilla-JS 5-bus visual via iframe; the Dashboard is the SDP comparison view.
+* **`src/`** — the IE 590 research code (single-battery SDP, XGBoost forecaster,
+  benchmarks, plots, PJM data loader). All 69 tests still pass.
+
+## What's in here
+
+* **Research code** — three single-asset dispatch policies (`src/policies/`),
+  XGBoost forecaster, benchmark runner, five figures, full report + slides.
+* **Backend API** — typed FastAPI routes for everything the simulator needs:
+  multi-period DC-OPF with cvxpy + HiGHS, LMPs from constraint duals,
+  scenario library (10 named scenarios), WebSocket solve progress.
+* **Pro simulator** — D3-rendered IEEE 14- and 30-bus diagrams with click-to-place
+  asset workflow, time scrubber, four results tabs (Dispatch / Storage / Prices /
+  Revenue), Framer Motion animations, Recharts visualizations.
+* **Real PJM data** — auto-detected when `data/pjm/rt_lmps.csv` is present;
+  current corpus is AEP-DAYTON HUB, Mar 28 – Apr 27 2026, 5-min resolution
+  (≈8.9k LMP rows + 8.4k regulation-price rows).
+
+## Quickstart — local
 
 ```bash
-# 1. Install uv (https://docs.astral.sh/uv/) if needed
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Backend
+cd backend
+uv sync --extra dev
+uv run uvicorn app.main:app --reload --port 8000  # serves /api/v1 + /docs
 
-# 2. Install the project + dependencies
-uv sync
+# Frontend (in a second shell)
+cd frontend
+npm install
+npm run dev   # http://localhost:5173 (proxies /api → :8000)
 
-# 3. Run the test suite
+# Research code (existing)
+cd ..
 uv run pytest --cov=src
-
-# 4. Regenerate all figures (uses synthetic data if real PJM CSVs are absent)
-uv run make figures
-
-# 5. Build the report and slides (requires pandoc + Marp CLI)
-make report
-make slides
 ```
 
-## Project layout
+## Quickstart — deployed
 
-```
-src/
-  forecasting/    # XGBoost LMP forecaster
-  policies/       # Perfect-foresight LP, myopic-greedy, MPC
-  eval/           # Benchmark runner + figure generators
-  utils/          # Synthetic data, PJM CSV loader, BatteryParams config
-notebooks/        # 00 data inspection, 01 validation, 02 real-data results
-tests/            # pytest suite, mirrors src/ layout
-figures/          # Generated PNG (300 dpi) and PDF; captions.md alongside
-report/           # IE590_final_report.md → PDF via pandoc
-slides/           # IE590_final.md → PDF via Marp
-data/pjm/         # Real PJM Data Miner 2 CSVs (gitignored). Optional.
-```
+See `docs/DEPLOY.md`. Two services:
+
+* Backend ⇒ Railway (Dockerfile build, `backend/Dockerfile`).
+* Frontend ⇒ Vercel (Vite build, `vercel.json`).
+
+Set `CORS_ORIGINS` on Railway to your Vercel domain, and `VITE_API_BASE_URL` on
+Vercel to your Railway URL. Health check: `GET /health`.
+
+## Roadmap
+
+- [x] **v1.0.0** — single-asset SDP comparison, 68 tests, report PDF
+- [x] **v2.0.0-backend** — FastAPI backend, multi-period DC-OPF, WebSocket
+- [x] **v2.1.0-frontend-shell** — Vite + React + TS + Tailwind shell, design system
+- [x] **v2.2.0-pro-simulator** — D3 simulator with optimization mode
+- [x] **v2.3.0-dashboard** — SDP comparison dashboard + real PJM 2026 data
+- [ ] **v2.4.0-polish** — landing, About with KaTeX, docs, accessibility
+- [ ] **v3.0.0-deployed** — Railway + Vercel custom domain
 
 ## Math notation in code
 
-The code matches the report notation:
-
-| Symbol | Variable | Meaning |
-|--------|----------|---------|
-| `E_t`     | `E`     | State of charge at time $t$ (MWh) |
-| `c_t`     | `c`     | Charge power (MW) |
-| `d_t`     | `d`     | Discharge power (MW) |
-| `b_reg_t` | `b_reg` | Regulation capacity bid (MW) |
-| `eta_c`   | `eta_c` | Round-trip charge efficiency |
-| `eta_d`   | `eta_d` | Round-trip discharge efficiency |
-| `kappa`   | `kappa` | Marginal degradation cost ($/MWh throughput) |
+| Symbol      | Variable   | Meaning                                              |
+|-------------|------------|------------------------------------------------------|
+| `E_{k,t}`   | `E`        | State of charge of battery k at time t (MWh)         |
+| `c, d`      | `c, d`     | Charge / discharge power (MW)                        |
+| `b_reg`     | `b_reg`    | Regulation capacity bid (MW, single-asset SDP)       |
+| `f_{l,t}`   | `f`        | Line flow (MW), positive = `from → to`               |
+| `θ_{b,t}`   | `theta`    | Bus voltage angle (rad)                              |
+| `λ_{b,t}`   | `lmp`      | LMP at bus b, time t ($/MWh) — dual of nodal balance |
+| `u_{j,t}`   | `u`        | Data-center utilization fraction                     |
+| `ξ_{r,t}`   | `curtail`  | Renewable curtailment fraction                       |
 
 ## Data
 
-If `data/pjm/rt_lmps.csv` is present (PJM Data Miner 2 export), the loader is used and
-figures are labeled "Real PJM data." Otherwise a synthetic generator is used and figures
-are clearly labeled as synthetic. There is no silent fallback in tests.
+When `data/pjm/rt_lmps.csv` is present (PJM Data Miner 2 export), the loader is
+used and figures are labeled with the pnode name. Otherwise a calibrated synthetic
+generator is used and figures are clearly labeled as synthetic. Tests never silently
+fall back.
 
-## Tests
-
-Every non-trivial function has a pytest test. Coverage target: ≥70 % on `src/policies`.
-
-```bash
-uv run pytest --cov=src --cov-report=term-missing
-```
+Current corpus: **AEP-DAYTON HUB** (pnode 34497127), 5-min RT LMPs and PJM RTO
+regulation clearing prices, March 28 – April 27, 2026.
 
 ## License
 
-Educational use; please cite the underlying data sources (PJM Interconnection) and the
-papers referenced in `report/IE590_final_report.md`.
+MIT — see [`LICENSE`](LICENSE). Cite PJM Interconnection for the underlying data
+and the references in `report/IE590_final_report.md` for the methodology.

@@ -2,8 +2,14 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, BookOpen, Zap, Battery, Brain } from 'lucide-react'
 import { Card } from '@/components/ui'
+import { usePageMeta } from '@/hooks/usePageMeta'
 
 export function Landing() {
+  usePageMeta({
+    title: 'Battery Market Maker',
+    description:
+      'Interactive multi-period DC-OPF simulator for grid-scale batteries, AI data centers, and renewables on IEEE 5/14/30-bus test systems.',
+  })
   return (
     <div className="flex-1 grid-bg">
       {/* Hero */}
