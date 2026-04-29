@@ -22,6 +22,17 @@ dist/
 .venv/
 venv/
 .env
+backend/.venv/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vercel/
+frontend/.turbo/
+
+# Backend
+backend/.env
+backend/uv.lock
 
 # IDE
 .vscode/
