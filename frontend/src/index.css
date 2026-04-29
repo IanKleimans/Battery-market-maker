@@ -1,0 +1,106 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 6 8 15;
+    --surface: 12 18 33;
+    --surface-hover: 17 26 47;
+    --border: 22 32 64;
+    --text-1: 241 245 249;
+    --text-2: 100 116 139;
+    --accent: 37 99 235;
+    color-scheme: dark;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-text-1 font-sans antialiased;
+    margin: 0;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Subtle grid background pattern matching the simulator */
+  .grid-bg {
+    background-image: radial-gradient(
+      circle at center,
+      theme('colors.border') 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg;
+  }
+
+  ::selection {
+    background: theme('colors.accent.DEFAULT');
+    color: theme('colors.text.1');
+  }
+
+  /* Scrollbar — subtle, matching dark surface */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme('colors.border');
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.text.3');
+  }
+}
+
+@layer components {
+  .mono {
+    @apply font-mono;
+    font-feature-settings: 'zero', 'ss01';
+  }
+
+  .reduced-motion {
+    @media (prefers-reduced-motion: reduce) {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Skeleton shimmer for loading states */
+  .skeleton {
+    @apply rounded;
+    background: linear-gradient(
+      90deg,
+      theme('colors.surface') 0%,
+      theme('colors.surface-hover') 50%,
+      theme('colors.surface') 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}

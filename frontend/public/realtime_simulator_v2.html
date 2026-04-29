@@ -1,0 +1,2601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DC-OPF Real-Time Simulator — 5-Bus System</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #06080f;
+  --surface: #0c1221;
+  --surface-border: #162040;
+  --surface-hover: #111a2f;
+  --accent: #2563eb;
+  --cyan: #06b6d4;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --coal: #f97316;
+  --gas-cc: #ef4444;
+  --gas-ct: #fb7185;
+  --wind: #10b981;
+  --nuclear: #8b5cf6;
+  --text-1: #f1f5f9;
+  --text-2: #64748b;
+  --text-3: #334155;
+  --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text-1);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ── HEADER ── */
+header {
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  flex-shrink: 0;
+  z-index: 10;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.header-left { display: flex; flex-direction: column; flex-shrink: 0; }
+.header-title { font-size: 16px; font-weight: 600; color: var(--text-1); line-height: 1.2; }
+.header-sub { font-size: 11px; color: var(--text-2); white-space: nowrap; }
+.header-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+.load-display {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: 0.5px;
+}
+.load-bar-outer {
+  width: 120px;
+  height: 4px;
+  background: var(--surface-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.load-bar-inner {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16,185,129,0.1);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--success);
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.solve-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 10px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* ── LAYOUT ── */
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.panel-left {
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--surface-border);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+.panel-center {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(22,32,64,0.25) 0%, transparent 70%),
+    radial-gradient(circle at center, var(--surface-border) 1px, transparent 1px);
+  background-size: 100% 100%, 20px 20px;
+}
+.panel-right {
+  width: 340px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--surface-border);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+
+/* ── FOOTER ── */
+footer {
+  height: 36px;
+  background: var(--surface);
+  border-top: 1px solid var(--surface-border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-size: 11px;
+  color: var(--text-2);
+  flex-shrink: 0;
+  gap: 16px;
+  z-index: 10;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
+}
+.footer-left { display: flex; gap: 12px; align-items: center; }
+.footer-center { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.footer-right { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fuel-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card:hover { border-color: rgba(37,99,235,0.25); box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+.card-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* ── SECTIONS (collapsible) ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+.section-header .card-title { margin-bottom: 0; transition: color 0.15s ease; }
+.section-header:hover .card-title { color: var(--text-1); }
+.section-chevron {
+  font-size: 11px;
+  color: var(--text-2);
+  transition: transform 0.25s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.section-header:hover .section-chevron { color: var(--text-1); }
+.section-header.open .section-chevron { transform: rotate(180deg); }
+.section-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.25s ease;
+  opacity: 0;
+}
+.section-body.open {
+  max-height: 600px;
+  opacity: 1;
+  margin-top: 8px;
+}
+
+/* ── PRESET PILLS ── */
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.preset-pill {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.preset-pill:hover { border-color: var(--accent); color: var(--text-1); }
+.preset-pill.active {
+  background: rgba(37,99,235,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.preset-pill[disabled] {
+  cursor: default;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.preset-pill[disabled].active {
+  opacity: 1;
+  background: rgba(37,99,235,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* ── SLIDERS ── */
+.slider-row { margin-bottom: 6px; }
+.slider-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 3px;
+  min-width: 0;
+  gap: 8px;
+}
+.slider-label { color: var(--text-2); display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.slider-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-1);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.slider-sub {
+  font-size: 9px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+.slider-wrapper { position: relative; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-border);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transition: background 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { background: #3b82f6; }
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid rgba(255,255,255,0.3);
+  cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+input[type=range].wind-slider::-webkit-slider-thumb { background: var(--wind); border-color: #065f46; }
+input[type=range].wind-slider::-moz-range-thumb { background: var(--wind); border-color: #065f46; }
+
+.congested-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--danger);
+  animation: pulse-dot 1.5s infinite;
+  flex-shrink: 0;
+}
+.disconnected-badge {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--danger);
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.2);
+  padding: 0 4px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.total-load-sum {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  padding-top: 4px;
+  border-top: 1px solid var(--surface-border);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+.total-load-sum .mono { color: var(--text-1); transition: color 0.3s ease; }
+.total-load-sum.warn .mono { color: var(--danger); }
+
+/* ── BUTTONS ── */
+.btn-ghost {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--surface-border);
+  color: var(--text-2);
+  padding: 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-ghost:hover { background: var(--surface-border); color: var(--text-1); }
+.btn-row { display: flex; gap: 6px; }
+.btn-row .btn-ghost { flex: 1; }
+.shortcut-hint {
+  font-size: 9px;
+  color: var(--text-2);
+  text-align: center;
+  padding: 2px 0;
+}
+kbd {
+  background: var(--surface-border);
+  border: 1px solid var(--text-3);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+/* ── NETWORK SVG ── */
+#network-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── RIGHT PANEL COMPONENTS ── */
+.big-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.3s ease;
+}
+.delta-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: 8px;
+}
+.stat-cell {
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(22,32,64,0.5);
+  font-size: 11px;
+  overflow: hidden;
+}
+.stat-cell:nth-child(odd) { padding-right: 8px; }
+.stat-cell:nth-child(even) { padding-left: 8px; border-left: 1px solid rgba(22,32,64,0.5); }
+.stat-key { color: var(--text-2); display: block; font-size: 10px; }
+.stat-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  color: var(--text-1);
+  font-weight: 500;
+  font-size: 13px;
+  transition: color 0.3s ease;
+}
+
+/* LMP Heatmap */
+.lmp-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.lmp-cell {
+  border-radius: 6px;
+  padding: 8px 4px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.lmp-cell .bus-label { font-size: 9px; color: rgba(255,255,255,0.5); display: block; }
+.lmp-cell .lmp-val {
+  font-size: 14px; font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  display: block;
+  margin: 2px 0;
+}
+.lmp-cell .load-val { font-size: 8px; color: var(--text-2); display: block; }
+.lmp-uniform { font-size: 9px; color: var(--text-3); text-align: center; margin-top: 4px; }
+.lmp-range {
+  font-size: 10px; color: var(--text-2); margin-top: 6px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Merit Order Stacked Bar */
+.merit-stack {
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface-border);
+  margin-bottom: 8px;
+}
+.merit-seg {
+  position: absolute;
+  top: 0; height: 100%;
+  transition: left 0.3s ease, width 0.3s ease;
+  cursor: pointer;
+}
+.merit-seg:hover { filter: brightness(1.3); }
+.merit-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+.merit-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Line Loading Bars */
+.line-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  font-size: 10px;
+  transition: background 0.3s;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+.line-bar-row.congested { background: rgba(239,68,68,0.06); }
+.line-label { width: 36px; color: var(--text-2); flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.line-bar-bg { flex: 1; height: 8px; background: var(--surface-border); border-radius: 2px; overflow: hidden; }
+.line-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.line-pct {
+  width: 42px; text-align: right; flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-weight: 500;
+  white-space: nowrap;
+}
+.line-mw {
+  width: 55px; text-align: right; flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* Cost Breakdown */
+.cost-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.cost-table th { color: var(--text-2); font-weight: 500; text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--surface-border); white-space: nowrap; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cost-table td { padding: 3px 4px; color: var(--text-2); border-bottom: 1px solid rgba(22,32,64,0.4); white-space: nowrap; }
+.cost-table td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; text-align: right; white-space: nowrap; }
+.cost-table tr:last-child td { border-bottom: none; }
+.cost-table .total-row td { color: var(--text-1); font-weight: 600; border-top: 1px solid var(--surface-border); }
+
+/* Analytics */
+.analytics-item {
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(22,32,64,0.4);
+  font-size: 10px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.analytics-item:last-child { border-bottom: none; }
+.analytics-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1px;
+}
+.analytics-value { color: var(--text-2); }
+.analytics-value .mono { color: var(--text-1); }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  white-space: nowrap;
+}
+.badge-green { background: rgba(16,185,129,0.12); color: var(--success); border: 1px solid rgba(16,185,129,0.25); }
+.badge-red { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+.badge-amber { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.25); }
+
+/* ── TOOLTIP ── */
+.tooltip {
+  position: fixed;
+  display: none;
+  background: rgba(6,8,15,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-1);
+  pointer-events: none;
+  z-index: 200;
+  max-width: 260px;
+  line-height: 1.5;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
+}
+.tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+.tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; }
+.tooltip .tt-key { color: var(--text-2); }
+.tooltip .tt-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; font-weight: 500; }
+
+/* ── OVERLAYS ── */
+#infeasible-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(239,68,68,0.08);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 15;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  pointer-events: none;
+}
+#infeasible-overlay.show { display: flex; }
+#infeasible-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--danger);
+  text-shadow: 0 0 30px rgba(239,68,68,0.6);
+}
+#infeasible-sub {
+  font-size: 13px;
+  color: var(--danger);
+  opacity: 0.8;
+  margin-top: 6px;
+  text-align: center;
+  max-width: 80%;
+  line-height: 1.4;
+}
+#comparison-banner {
+  display: none;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(37,99,235,0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(37,99,235,0.3);
+  border-radius: 6px;
+  padding: 4px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 1px;
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#comparison-overlay {
+  display: none;
+  position: absolute;
+  top: 8px; right: 8px;
+  background: rgba(6,8,15,0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 20;
+  min-width: 200px;
+  font-size: 11px;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.comp-title {
+  font-size: 10px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.comp-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 3px; }
+.comp-label { color: var(--text-2); }
+.comp-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; font-weight: 600; }
+.comp-pos { color: var(--danger); }
+.comp-neg { color: var(--success); }
+.comp-zero { color: var(--text-2); }
+
+/* ── SCROLLBAR ── */
+.panel-left, .panel-right {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-border) var(--bg);
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ── ANIMATIONS ── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  70% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+@keyframes congested-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.pulse-green {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--success);
+  animation: pulse-dot 2s infinite;
+  flex-shrink: 0;
+}
+.pulse-red {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger);
+  animation: pulse-red 1.5s infinite;
+  flex-shrink: 0;
+}
+.pulse-amber {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--warning);
+  animation: pulse-dot 2s infinite;
+  flex-shrink: 0;
+}
+
+/* Donut */
+#donut-svg { display: block; margin: 0 auto; max-width: 100%; overflow: visible; }
+.donut-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="header-title">DC-OPF Real-Time Simulator</div>
+    <div class="header-sub">5-Bus Transmission Network · S<sub>base</sub> = 100 MVA</div>
+  </div>
+  <div class="header-center">
+    <span class="load-display" id="header-load">LOAD: 250 MW</span>
+    <div class="load-bar-outer">
+      <div class="load-bar-inner" id="header-load-bar" style="width:45%"></div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-indicator" id="status-indicator">
+      <span class="pulse-green" id="status-dot"></span>
+      <span id="status-text" style="color:var(--success)">SYSTEM OPTIMAL</span>
+    </div>
+    <div class="live-badge">
+      <span class="pulse-green" style="width:6px;height:6px;"></span>
+      LIVE
+    </div>
+    <span class="solve-time" id="solve-time">Solved in —ms</span>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- LEFT PANEL -->
+  <aside class="panel-left">
+
+    <div class="card">
+      <div class="card-title">Presets</div>
+      <div class="preset-row" id="preset-row">
+        <button class="preset-pill active" data-preset="Base Case">Base Case</button>
+        <button class="preset-pill" data-preset="No Wind">No Wind</button>
+        <button class="preset-pill" data-preset="Peak Load">Peak Load</button>
+        <button class="preset-pill" data-preset="Tx Emergency">Tx Emergency</button>
+        <button class="preset-pill" disabled data-preset="Custom">Custom</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header open" data-section="wind">
+        <div class="card-title" style="color:var(--wind);margin-bottom:0;">Wind & Renewables</div>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body open" id="section-wind">
+        <div class="slider-row">
+          <div class="slider-label-row">
+            <span class="slider-label"><span class="fuel-dot" style="background:var(--wind);"></span>G4 Wind Availability</span>
+            <span class="slider-value mono" id="lbl-wind">50 MW</span>
+          </div>
+          <input type="range" class="wind-slider" id="wind-slider" min="0" max="50" step="1" value="50">
+          <div class="slider-sub">G4 · Bus 3 · $0/MWh · Zero marginal cost</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header open" data-section="loads">
+        <div class="card-title" style="margin-bottom:0;">Bus Loads</div>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body open" id="section-loads">
+        <div id="load-sliders"></div>
+        <div class="total-load-sum" id="total-load-sum">
+          <span>Total</span>
+          <span class="mono" id="total-load-val">250 MW</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header" data-section="lines">
+        <div class="card-title" style="margin-bottom:0;">Line Capacities</div>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body" id="section-lines">
+        <div id="line-sliders"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header" data-section="costs">
+        <div class="card-title" style="margin-bottom:0;">Generator Costs</div>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body" id="section-costs">
+        <div id="cost-sliders"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header" data-section="caps">
+        <div class="card-title" style="margin-bottom:0;">Generator Capacities</div>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body" id="section-caps">
+        <div id="cap-sliders"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-ghost" id="reset-btn">&#8635; RESET ALL</button>
+      <button class="btn-ghost" id="export-btn">EXPORT</button>
+    </div>
+    <div class="shortcut-hint">
+      <kbd>SPACE</kbd> compare &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>1</kbd>-<kbd>4</kbd> presets
+    </div>
+
+  </aside>
+
+  <!-- CENTER PANEL -->
+  <main class="panel-center">
+    <svg id="network-svg" viewBox="0 0 860 620" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="infeasible-overlay">
+      <span id="infeasible-text">&#9888; SYSTEM INFEASIBLE</span>
+      <span id="infeasible-sub">Network constraints cannot be satisfied</span>
+    </div>
+    <div id="comparison-banner">COMPARING TO BASE CASE &mdash; <span style="font-weight:400;opacity:0.7;">press SPACE to dismiss</span></div>
+    <div id="comparison-overlay">
+      <div class="comp-title">&#916; vs. Base Case</div>
+      <div id="comp-content"></div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="panel-right">
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="card-title">System Overview</div>
+          <div class="big-value" id="total-cost" style="color:var(--success);">$3,500.00/hr</div>
+          <div class="delta-value" id="cost-delta" style="color:var(--text-2);">Base case</div>
+        </div>
+        <span class="badge badge-green" id="status-badge">OPTIMAL</span>
+      </div>
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-cell"><span class="stat-key">Generation</span><span class="stat-val" id="stat-gen">250.00 MW</span></div>
+        <div class="stat-cell"><span class="stat-key">Total Load</span><span class="stat-val" id="stat-load">250.00 MW</span></div>
+        <div class="stat-cell"><span class="stat-key">Congested Lines</span><span class="stat-val" id="stat-congested">0 / 6</span></div>
+        <div class="stat-cell"><span class="stat-key">Max Loading</span><span class="stat-val" id="stat-max-loading">0%</span></div>
+        <div class="stat-cell"><span class="stat-key">Congestion Rent</span><span class="stat-val" id="stat-rent">$0.00</span></div>
+        <div class="stat-cell"><span class="stat-key">LMP Spread</span><span class="stat-val" id="stat-spread">$0.00</span></div>
+      </div>
+      <div class="lmp-range" id="lmp-range"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">LMP Heatmap</div>
+      <div class="lmp-grid" id="lmp-grid"></div>
+      <div id="lmp-uniform-label" class="lmp-uniform"></div>
+      <div class="lmp-range" id="lmp-min-max"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Merit Order Dispatch</div>
+      <div class="merit-stack" id="merit-stack"></div>
+      <div class="merit-legend" id="merit-legend"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Generation Mix</div>
+      <svg id="donut-svg" width="310" height="120"></svg>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Line Loading</div>
+      <div id="line-loading-chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cost Breakdown</div>
+      <table class="cost-table">
+        <thead><tr><th>Gen</th><th>Fuel</th><th style="text-align:right">MW</th><th style="text-align:right">$/MWh</th><th style="text-align:right">$/hr</th><th style="text-align:right">%</th></tr></thead>
+        <tbody id="cost-table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">System Analytics</div>
+      <div id="analytics-content"></div>
+    </div>
+
+  </aside>
+</div>
+
+<footer>
+  <div class="footer-left">
+    <span><span class="fuel-dot" style="background:var(--coal);"></span>Coal</span>
+    <span><span class="fuel-dot" style="background:var(--gas-cc);"></span>Gas CC</span>
+    <span><span class="fuel-dot" style="background:var(--gas-ct);"></span>Gas CT</span>
+    <span><span class="fuel-dot" style="background:var(--wind);"></span>Wind</span>
+    <span><span class="fuel-dot" style="background:var(--nuclear);"></span>Nuclear</span>
+  </div>
+  <div class="footer-center">Solver: Browser-side Simplex · DC Bus-Angle Formulation · S<sub>base</sub> = 100 MVA</div>
+  <div class="footer-right">Built by Ian Kleimans — IE590 Energy Systems & AI · Purdue University</div>
+</footer>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://unpkg.com/javascript-lp-solver@0.4.24/src/solver.js"></script>
+
+<script>
+'use strict';
+
+// ================================================================
+// 1. UTILITIES
+// ================================================================
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+function updateSliderFill(slider, color) {
+  var pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+  slider.style.background = 'linear-gradient(to right, ' + color + ' ' + pct + '%, #162040 ' + pct + '%)';
+}
+
+// ================================================================
+// 2. SYSTEM DATA
+// ================================================================
+var FUEL_COLORS = {
+  'Coal':    '#f97316',
+  'Gas CC':  '#ef4444',
+  'Gas CT':  '#fb7185',
+  'Wind':    '#10b981',
+  'Nuclear': '#8b5cf6'
+};
+
+var DEFAULT_STATE = {
+  loads: { 1: 0, 2: 80, 3: 60, 4: 70, 5: 40 },
+  generators: {
+    G1: { bus:1, fuel:'Coal',    cost:22, pmax:160, pmaxDefault:160 },
+    G2: { bus:1, fuel:'Gas CC',  cost:34, pmax:80,  pmaxDefault:80  },
+    G3: { bus:2, fuel:'Gas CT',  cost:55, pmax:70,  pmaxDefault:70  },
+    G4: { bus:3, fuel:'Wind',    cost:0,  pmax:50,  pmaxDefault:50  },
+    G5: { bus:4, fuel:'Nuclear', cost:12, pmax:90,  pmaxDefault:90  },
+    G6: { bus:5, fuel:'Gas CC',  cost:38, pmax:100, pmaxDefault:100 }
+  },
+  lines: [
+    { from:1, to:2, x:0.10, fmax:70,  fmaxDefault:70  },
+    { from:1, to:3, x:0.15, fmax:60,  fmaxDefault:60  },
+    { from:2, to:3, x:0.10, fmax:40,  fmaxDefault:40  },
+    { from:2, to:4, x:0.20, fmax:45,  fmaxDefault:45  },
+    { from:3, to:5, x:0.10, fmax:50,  fmaxDefault:50  },
+    { from:4, to:5, x:0.10, fmax:35,  fmaxDefault:35  }
+  ]
+};
+
+var DEFAULT_COSTS = { G1:22, G2:34, G3:55, G4:0, G5:12, G6:38 };
+var DEFAULT_LOADS = { 1:0, 2:80, 3:60, 4:70, 5:40 };
+
+var BUS_POS = {
+  1: { x: 175, y: 280 },
+  2: { x: 430, y: 93  },
+  3: { x: 345, y: 434 },
+  4: { x: 690, y: 248 },
+  5: { x: 515, y: 527 }
+};
+
+var LINE_DEFS = [
+  { from:1, to:2 }, { from:1, to:3 }, { from:2, to:3 },
+  { from:2, to:4 }, { from:3, to:5 }, { from:4, to:5 }
+];
+
+var GEN_POS = {
+  G1: { x: 75,  y: 252 },
+  G2: { x: 75,  y: 308 },
+  G3: { x: 430, y: 22  },
+  G4: { x: 245, y: 434 },
+  G5: { x: 800, y: 238 },
+  G6: { x: 625, y: 537 }
+};
+
+var FLOW_LABEL_OFFSETS = {
+  '1-2': { dx: -14, dy: -12 },
+  '1-3': { dx: -16, dy:  10 },
+  '2-3': { dx: -22, dy:  -2 },
+  '2-4': { dx:  8,  dy: -14 },
+  '3-5': { dx:  12, dy: -10 },
+  '4-5': { dx:  18, dy:   8 }
+};
+
+var NODE_W = 130, NODE_H = 85;
+var GEN_W = 52, GEN_H = 30;
+
+var appState = deepClone(DEFAULT_STATE);
+var currentResult = null;
+var baseResult = null;
+var baseCaseCost = null;
+var showComparison = false;
+
+// ================================================================
+// 3. LP SOLVER — DC-OPF WITH POS/NEG DECOMPOSITION
+// (Preserved exactly from working original)
+// ================================================================
+function buildModel(state) {
+  var loads = state.loads;
+  var generators = state.generators;
+  var lines = state.lines;
+  var model = { optimize:'obj', opType:'min', constraints:{}, variables:{} };
+
+  lines.forEach(function(ln) {
+    model.constraints['fd_' + ln.from + '_' + ln.to] = { equal: 0 };
+  });
+
+  [1,2,3,4,5].forEach(function(bus) {
+    model.constraints['nb_' + bus] = { equal: loads[bus] || 0 };
+  });
+
+  Object.keys(generators).forEach(function(id) {
+    var g = generators[id];
+    model.constraints['pmax_' + id] = { max: g.pmax };
+  });
+
+  [2,3,4,5].forEach(function(bus) {
+    model.constraints['tpmax_' + bus] = { max: 1.57 };
+    model.constraints['tnmax_' + bus] = { max: 1.57 };
+  });
+
+  lines.forEach(function(ln) {
+    var key = ln.from + '_' + ln.to;
+    model.constraints['fpmax_' + key] = { max: ln.fmax };
+    model.constraints['fnmax_' + key] = { max: ln.fmax };
+  });
+
+  Object.keys(generators).forEach(function(id) {
+    var g = generators[id];
+    var v = { obj: g.cost };
+    v['nb_' + g.bus] = 1;
+    v['pmax_' + id] = 1;
+    model.variables['P_' + id] = v;
+  });
+
+  [2,3,4,5].forEach(function(bus) {
+    var vp = {};
+    var vn = {};
+    vp['tpmax_' + bus] = 1;
+    vn['tnmax_' + bus] = 1;
+
+    lines.forEach(function(ln) {
+      var B = 100 / ln.x;
+      var ckey = 'fd_' + ln.from + '_' + ln.to;
+      if (ln.from === bus) {
+        vp[ckey] = (vp[ckey] || 0) - B;
+        vn[ckey] = (vn[ckey] || 0) + B;
+      }
+      if (ln.to === bus) {
+        vp[ckey] = (vp[ckey] || 0) + B;
+        vn[ckey] = (vn[ckey] || 0) - B;
+      }
+    });
+
+    model.variables['tp' + bus] = vp;
+    model.variables['tn' + bus] = vn;
+  });
+
+  lines.forEach(function(ln) {
+    var key = ln.from + '_' + ln.to;
+    var vp = {};
+    var vn = {};
+
+    vp['fd_' + key] =  1;
+    vp['nb_' + ln.from] = -1;
+    vp['nb_' + ln.to]   =  1;
+    vp['fpmax_' + key]  =  1;
+
+    vn['fd_' + key] = -1;
+    vn['nb_' + ln.from] =  1;
+    vn['nb_' + ln.to]   = -1;
+    vn['fnmax_' + key]  =  1;
+
+    model.variables['fp_' + key] = vp;
+    model.variables['fn_' + key] = vn;
+  });
+
+  return model;
+}
+
+function solveDCOPF(state) {
+  try {
+    var model = buildModel(state);
+    var res = solver.Solve(model);
+    if (!res.feasible) return { feasible: false };
+
+    var dispatch = {};
+    Object.keys(state.generators).forEach(function(id) {
+      dispatch[id] = res['P_' + id] || 0;
+    });
+
+    var angles = { 1: 0 };
+    [2,3,4,5].forEach(function(bus) {
+      angles[bus] = (res['tp' + bus] || 0) - (res['tn' + bus] || 0);
+    });
+
+    var flows = {};
+    state.lines.forEach(function(ln) {
+      var key  = ln.from + '-' + ln.to;
+      var fkey = ln.from + '_' + ln.to;
+      var fval = (res['fp_' + fkey] || 0) - (res['fn_' + fkey] || 0);
+      flows[key] = {
+        from: ln.from, to: ln.to,
+        MW: fval, limit: ln.fmax,
+        loading: ln.fmax > 0 ? Math.abs(fval) / ln.fmax * 100 : 0
+      };
+    });
+
+    var totalCost = res.result || 0;
+    var lmps = computeLMPs(state, totalCost);
+
+    return { feasible: true, totalCost: totalCost, dispatch: dispatch, angles: angles, flows: flows, lmps: lmps };
+  } catch(e) {
+    return { feasible: false, error: e.message };
+  }
+}
+
+function computeLMPs(state, baseCost) {
+  var EPS = 1.0;
+  var lmps = {};
+  [1,2,3,4,5].forEach(function(bus) {
+    var st2 = deepClone(state);
+    st2.loads[bus] = (st2.loads[bus] || 0) + EPS;
+    try {
+      var model2 = buildModel(st2);
+      var res2 = solver.Solve(model2);
+      lmps[bus] = res2.feasible ? (res2.result - baseCost) / EPS : null;
+    } catch(e) {
+      lmps[bus] = null;
+    }
+  });
+  return lmps;
+}
+
+function solveForCost(state) {
+  try {
+    var model = buildModel(state);
+    var res = solver.Solve(model);
+    return res.feasible ? res.result : null;
+  } catch(e) {
+    return null;
+  }
+}
+
+// ================================================================
+// 4. COLOR UTILITIES
+// ================================================================
+function lmpColor(lmp) {
+  if (lmp == null) return '#64748b';
+  if (lmp < 20) return '#10b981';
+  if (lmp < 35) return '#f59e0b';
+  return '#ef4444';
+}
+
+function lmpHeatColor(lmp, minLmp, maxLmp) {
+  if (minLmp === maxLmp) return 'rgba(16,185,129,0.2)';
+  var t = (lmp - minLmp) / (maxLmp - minLmp);
+  var r, g, b;
+  if (t <= 0.5) {
+    r = Math.round(16 + (245 - 16) * t * 2);
+    g = Math.round(185 + (158 - 185) * t * 2);
+    b = Math.round(129 + (11 - 129) * t * 2);
+  } else {
+    var t2 = (t - 0.5) * 2;
+    r = Math.round(245 + (239 - 245) * t2);
+    g = Math.round(158 + (68 - 158) * t2);
+    b = Math.round(11 + (68 - 11) * t2);
+  }
+  return 'rgba(' + r + ',' + g + ',' + b + ',0.2)';
+}
+
+function lineColor(pct) {
+  if (pct < 50)   return '#475569';
+  if (pct < 80)   return '#f59e0b';
+  if (pct < 99.5) return '#f97316';
+  return '#ef4444';
+}
+
+function lineWidth(pct) {
+  return 2 + Math.min(pct / 100, 1) * 8;
+}
+
+// ================================================================
+// 5. TOOLTIP SYSTEM
+// ================================================================
+var tooltipEl = null;
+
+function showTooltip(html, x, y) {
+  if (!tooltipEl) tooltipEl = document.getElementById('tooltip');
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.display = 'block';
+  var rect = tooltipEl.getBoundingClientRect();
+  var tx = x + 12;
+  var ty = y - 8;
+  if (tx + rect.width > window.innerWidth - 10) tx = x - rect.width - 12;
+  if (tx < 10) tx = 10;
+  if (ty + rect.height > window.innerHeight - 10) ty = window.innerHeight - rect.height - 10;
+  if (ty < 10) ty = 10;
+  tooltipEl.style.left = tx + 'px';
+  tooltipEl.style.top = ty + 'px';
+}
+
+function hideTooltip() {
+  if (!tooltipEl) tooltipEl = document.getElementById('tooltip');
+  tooltipEl.style.display = 'none';
+}
+
+// ================================================================
+// 6. NETWORK DIAGRAM (D3)
+// ================================================================
+var svgRoot, lineG, glowG, particleG, genG, nodeG, labelG;
+var particleState = {};
+var lastAnimTime = 0;
+
+function initNetwork() {
+  svgRoot = d3.select('#network-svg');
+
+  // Defs: filters
+  var defs = svgRoot.append('defs');
+
+  // Red glow for congested lines
+  var filtRed = defs.append('filter')
+    .attr('id', 'glow-red')
+    .attr('x', '-50%').attr('y', '-50%')
+    .attr('width', '200%').attr('height', '200%');
+  filtRed.append('feGaussianBlur')
+    .attr('in', 'SourceGraphic').attr('stdDeviation', '5').attr('result', 'blur');
+  var merge = filtRed.append('feMerge');
+  merge.append('feMergeNode').attr('in', 'blur');
+  merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  // Amber glow
+  var filtAmber = defs.append('filter')
+    .attr('id', 'glow-amber')
+    .attr('x', '-50%').attr('y', '-50%')
+    .attr('width', '200%').attr('height', '200%');
+  filtAmber.append('feGaussianBlur')
+    .attr('in', 'SourceGraphic').attr('stdDeviation', '3').attr('result', 'blur');
+  var ma = filtAmber.append('feMerge');
+  ma.append('feMergeNode').attr('in', 'blur');
+  ma.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  // Node shadow
+  var filtShadow = defs.append('filter')
+    .attr('id', 'node-shadow')
+    .attr('x', '-20%').attr('y', '-20%')
+    .attr('width', '140%').attr('height', '160%');
+  filtShadow.append('feDropShadow')
+    .attr('dx', '0').attr('dy', '4')
+    .attr('stdDeviation', '8')
+    .attr('flood-color', 'rgba(0,0,0,0.3)');
+
+  // Layers
+  glowG     = svgRoot.append('g').attr('class', 'glow-layer');
+  lineG     = svgRoot.append('g').attr('class', 'line-layer');
+  particleG = svgRoot.append('g').attr('class', 'particle-layer');
+  genG      = svgRoot.append('g').attr('class', 'gen-layer');
+  nodeG     = svgRoot.append('g').attr('class', 'node-layer');
+  labelG    = svgRoot.append('g').attr('class', 'label-layer');
+
+  // Draw lines
+  LINE_DEFS.forEach(function(ld) {
+    var key = ld.from + '-' + ld.to;
+    var p1 = BUS_POS[ld.from], p2 = BUS_POS[ld.to];
+
+    // Glow line (wider, blurred, behind)
+    glowG.append('line')
+      .attr('class', 'glow-' + key)
+      .attr('x1', p1.x).attr('y1', p1.y)
+      .attr('x2', p2.x).attr('y2', p2.y)
+      .attr('stroke', '#475569')
+      .attr('stroke-width', 0)
+      .attr('stroke-linecap', 'round')
+      .attr('opacity', 0);
+
+    // Main line
+    lineG.append('line')
+      .attr('class', 'line-seg line-' + key)
+      .attr('x1', p1.x).attr('y1', p1.y)
+      .attr('x2', p2.x).attr('y2', p2.y)
+      .attr('stroke', '#1e293b')
+      .attr('stroke-width', 2)
+      .attr('stroke-linecap', 'round')
+      .style('cursor', 'pointer');
+
+    // Flow badge
+    var off = FLOW_LABEL_OFFSETS[key] || { dx:0, dy:0 };
+    var mx = (p1.x + p2.x) / 2 + off.dx;
+    var my = (p1.y + p2.y) / 2 + off.dy;
+
+    labelG.append('rect')
+      .attr('class', 'flow-bg-' + key)
+      .attr('rx', 8).attr('ry', 8)
+      .attr('fill', 'rgba(6,8,15,0.85)')
+      .attr('stroke', '#1e293b')
+      .attr('stroke-width', 1);
+
+    labelG.append('text')
+      .attr('class', 'flow-lbl-' + key)
+      .attr('x', mx).attr('y', my)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('font-family', "'IBM Plex Mono', monospace")
+      .attr('font-size', '10')
+      .attr('font-weight', '500')
+      .attr('fill', '#94a3b8');
+
+    // Init particles (5 per line)
+    initParticles(key, p1, p2);
+
+    // Line hover events
+    lineG.select('.line-' + key)
+      .on('mousemove', function(event) {
+        var f = currentResult && currentResult.flows ? currentResult.flows[key] : null;
+        if (!f) return;
+        var ln = appState.lines.find(function(l) { return l.from === ld.from && l.to === ld.to; });
+        var html = '<div class="tt-title">Line ' + ld.from + ' → ' + ld.to + '</div>'
+          + '<div class="tt-row"><span class="tt-key">Flow</span><span class="tt-val">' + f.MW.toFixed(1) + ' MW</span></div>'
+          + '<div class="tt-row"><span class="tt-key">Limit</span><span class="tt-val">' + f.limit + ' MW</span></div>'
+          + '<div class="tt-row"><span class="tt-key">Loading</span><span class="tt-val" style="color:' + lineColor(f.loading) + '">' + f.loading.toFixed(1) + '%</span></div>'
+          + '<div class="tt-row"><span class="tt-key">Reactance</span><span class="tt-val">' + (ln ? ln.x : '?') + ' pu</span></div>'
+          + (f.loading >= 99.5 ? '<div style="color:#ef4444;font-size:10px;margin-top:4px;font-weight:600;">⚠ CONGESTED</div>' : '');
+        showTooltip(html, event.clientX, event.clientY);
+      })
+      .on('mouseleave', hideTooltip);
+  });
+
+  // Draw bus nodes
+  [1,2,3,4,5].forEach(function(bus) {
+    var pos = BUS_POS[bus];
+    var gsel = nodeG.append('g')
+      .attr('class', 'bus-group-' + bus)
+      .attr('transform', 'translate(' + (pos.x - NODE_W/2) + ',' + (pos.y - NODE_H/2) + ')')
+      .attr('filter', 'url(#node-shadow)')
+      .style('cursor', 'pointer');
+
+    // Background rect
+    gsel.append('rect')
+      .attr('class', 'bus-rect-' + bus)
+      .attr('width', NODE_W).attr('height', NODE_H)
+      .attr('rx', 10).attr('ry', 10)
+      .attr('fill', '#0c1221')
+      .attr('stroke', '#162040')
+      .attr('stroke-width', 1.5);
+
+    // Top accent bar
+    gsel.append('rect')
+      .attr('class', 'bus-accent-' + bus)
+      .attr('x', 1).attr('y', 1)
+      .attr('width', NODE_W - 2).attr('height', 4)
+      .attr('rx', 10).attr('ry', 2)
+      .attr('fill', '#10b981');
+
+    // Bus label
+    gsel.append('text')
+      .attr('class', 'bus-lbl-' + bus)
+      .attr('x', NODE_W/2).attr('y', 22)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', "'IBM Plex Sans', sans-serif")
+      .attr('font-size', '11').attr('font-weight', '600')
+      .attr('letter-spacing', '1')
+      .attr('fill', '#64748b')
+      .text('BUS ' + bus);
+
+    // REF badge for Bus 1
+    if (bus === 1) {
+      gsel.append('rect')
+        .attr('x', NODE_W - 30).attr('y', 12)
+        .attr('width', 24).attr('height', 14)
+        .attr('rx', 3)
+        .attr('fill', 'rgba(6,182,212,0.15)')
+        .attr('stroke', 'rgba(6,182,212,0.4)')
+        .attr('stroke-width', 0.5);
+      gsel.append('text')
+        .attr('x', NODE_W - 18).attr('y', 22)
+        .attr('text-anchor', 'middle')
+        .attr('font-family', "'IBM Plex Mono', monospace")
+        .attr('font-size', '8').attr('font-weight', '600')
+        .attr('fill', '#06b6d4')
+        .text('REF');
+    }
+
+    // LMP value
+    gsel.append('text')
+      .attr('class', 'bus-lmp-' + bus)
+      .attr('x', NODE_W/2).attr('y', 46)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', "'IBM Plex Mono', monospace")
+      .attr('font-size', '18').attr('font-weight', '600')
+      .attr('fill', '#10b981')
+      .text('—');
+
+    // Load line
+    gsel.append('text')
+      .attr('class', 'bus-load-' + bus)
+      .attr('x', 10).attr('y', NODE_H - 12)
+      .attr('font-family', "'IBM Plex Sans', sans-serif")
+      .attr('font-size', '10').attr('fill', '#64748b');
+
+    // Gen line
+    gsel.append('text')
+      .attr('class', 'bus-gen-' + bus)
+      .attr('x', NODE_W - 10).attr('y', NODE_H - 12)
+      .attr('text-anchor', 'end')
+      .attr('font-family', "'IBM Plex Mono', monospace")
+      .attr('font-size', '10').attr('fill', '#64748b');
+
+    // Bus hover
+    gsel.on('mousemove', function(event) {
+      var lmp = currentResult && currentResult.lmps ? currentResult.lmps[bus] : null;
+      var load = appState.loads[bus] || 0;
+      var totalGen = 0;
+      var genList = [];
+      Object.keys(appState.generators).forEach(function(gid) {
+        if (appState.generators[gid].bus === bus) {
+          var mw = currentResult && currentResult.dispatch ? (currentResult.dispatch[gid] || 0) : 0;
+          totalGen += mw;
+          genList.push(gid + ': ' + mw.toFixed(1) + ' MW');
+        }
+      });
+      var html = '<div class="tt-title">Bus ' + bus + (bus === 1 ? ' (Reference)' : '') + '</div>'
+        + '<div class="tt-row"><span class="tt-key">LMP</span><span class="tt-val" style="color:' + lmpColor(lmp) + '">' + (lmp != null ? '$' + lmp.toFixed(2) + '/MWh' : '—') + '</span></div>'
+        + '<div class="tt-row"><span class="tt-key">Load</span><span class="tt-val">' + load + ' MW</span></div>'
+        + '<div class="tt-row"><span class="tt-key">Generation</span><span class="tt-val">' + totalGen.toFixed(1) + ' MW</span></div>'
+        + (genList.length ? '<div style="font-size:9px;color:#64748b;margin-top:3px;">' + genList.join(' · ') + '</div>' : '');
+      showTooltip(html, event.clientX, event.clientY);
+    })
+    .on('mouseleave', hideTooltip);
+  });
+
+  // Draw generator icons
+  Object.keys(GEN_POS).forEach(function(gid) {
+    var pos = GEN_POS[gid];
+    var g = DEFAULT_STATE.generators[gid];
+    var col = FUEL_COLORS[g.fuel];
+
+    var gg = genG.append('g')
+      .attr('class', 'gen-group-' + gid)
+      .style('cursor', 'pointer');
+
+    // Connector line to bus
+    var bpos = BUS_POS[g.bus];
+    gg.append('line')
+      .attr('x1', pos.x).attr('y1', pos.y)
+      .attr('x2', bpos.x).attr('y2', bpos.y)
+      .attr('stroke', col)
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '3,3')
+      .attr('opacity', 0.25);
+
+    // Background
+    gg.append('rect')
+      .attr('class', 'gen-bg-' + gid)
+      .attr('x', pos.x - GEN_W/2).attr('y', pos.y - GEN_H/2)
+      .attr('width', GEN_W).attr('height', GEN_H)
+      .attr('rx', 5)
+      .attr('fill', col)
+      .attr('opacity', 0.12)
+      .attr('stroke', col)
+      .attr('stroke-width', 1);
+
+    // Capacity bar background
+    gg.append('rect')
+      .attr('x', pos.x - GEN_W/2 + 2).attr('y', pos.y + GEN_H/2 - 5)
+      .attr('width', GEN_W - 4).attr('height', 3)
+      .attr('rx', 1.5)
+      .attr('fill', 'rgba(255,255,255,0.05)');
+
+    // Capacity bar fill
+    gg.append('rect')
+      .attr('class', 'gen-cap-' + gid)
+      .attr('x', pos.x - GEN_W/2 + 2).attr('y', pos.y + GEN_H/2 - 5)
+      .attr('width', 0).attr('height', 3)
+      .attr('rx', 1.5)
+      .attr('fill', col);
+
+    // Label
+    gg.append('text')
+      .attr('class', 'gen-id-' + gid)
+      .attr('x', pos.x).attr('y', pos.y - 2)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', "'IBM Plex Sans', sans-serif")
+      .attr('font-size', '10').attr('font-weight', '700')
+      .attr('fill', col)
+      .text(gid);
+
+    // MW value
+    gg.append('text')
+      .attr('class', 'gen-mw-' + gid)
+      .attr('x', pos.x).attr('y', pos.y + 10)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', "'IBM Plex Mono', monospace")
+      .attr('font-size', '9').attr('font-weight', '500')
+      .attr('fill', '#94a3b8')
+      .text('—');
+
+    // Gen hover
+    gg.on('mousemove', function(event) {
+      var gen = appState.generators[gid];
+      var mw = currentResult && currentResult.dispatch ? (currentResult.dispatch[gid] || 0) : 0;
+      var util = gen.pmax > 0 ? (mw / gen.pmax * 100).toFixed(1) : '0.0';
+      var html = '<div class="tt-title" style="color:' + col + '">' + gid + ' — ' + gen.fuel + '</div>'
+        + '<div class="tt-row"><span class="tt-key">Bus</span><span class="tt-val">' + gen.bus + '</span></div>'
+        + '<div class="tt-row"><span class="tt-key">Cost</span><span class="tt-val">$' + gen.cost + '/MWh</span></div>'
+        + '<div class="tt-row"><span class="tt-key">Dispatch</span><span class="tt-val">' + mw.toFixed(1) + ' MW</span></div>'
+        + '<div class="tt-row"><span class="tt-key">Capacity</span><span class="tt-val">' + gen.pmax + ' MW</span></div>'
+        + '<div class="tt-row"><span class="tt-key">Utilization</span><span class="tt-val">' + util + '%</span></div>';
+      showTooltip(html, event.clientX, event.clientY);
+    })
+    .on('mouseleave', hideTooltip);
+  });
+}
+
+// ================================================================
+// 7. PARTICLES
+// ================================================================
+function initParticles(key, p1, p2) {
+  var N = 5;
+  particleState[key] = { t: [], dir: 1, speed: 0.001, color: '#475569', count: 0 };
+  for (var i = 0; i < N; i++) {
+    particleState[key].t.push(i / N);
+    particleG.append('circle')
+      .attr('class', 'particle-' + key + '-' + i)
+      .attr('r', 2.5).attr('fill', '#475569').attr('opacity', 0);
+  }
+}
+
+function animateParticles(timestamp) {
+  var dt = Math.min((timestamp - lastAnimTime) / 1000, 0.05);
+  lastAnimTime = timestamp;
+
+  LINE_DEFS.forEach(function(ld) {
+    var key = ld.from + '-' + ld.to;
+    var ps = particleState[key];
+    if (!ps) return;
+
+    var p1 = BUS_POS[ld.from], p2 = BUS_POS[ld.to];
+
+    ps.t.forEach(function(t, i) {
+      ps.t[i] = ((t + ps.dir * ps.speed * 60 * dt) % 1 + 1) % 1;
+      var tt = ps.t[i];
+      var px = p1.x + (p2.x - p1.x) * tt;
+      var py = p1.y + (p2.y - p1.y) * tt;
+
+      var el = document.querySelector('.particle-' + key + '-' + i);
+      if (el) {
+        el.setAttribute('cx', px);
+        el.setAttribute('cy', py);
+        el.setAttribute('fill', ps.color || '#475569');
+        el.setAttribute('opacity', i < ps.count ? (ps.speed > 0.001 ? 0.7 : 0.3) : 0);
+        el.setAttribute('r', 2 + ps.speed * 200);
+      }
+    });
+  });
+
+  requestAnimationFrame(animateParticles);
+}
+
+// ================================================================
+// 8. NETWORK UPDATE
+// ================================================================
+function updateNetwork(result) {
+  if (!result) return;
+
+  var infeasEl = document.getElementById('infeasible-overlay');
+
+  if (!result.feasible) {
+    infeasEl.classList.add('show');
+    var totalLoad = 0;
+    Object.values(appState.loads).forEach(function(v) { totalLoad += v; });
+    var totalCap = 0;
+    Object.values(appState.generators).forEach(function(g) { totalCap += g.pmax; });
+    var sub = document.getElementById('infeasible-sub');
+    if (totalLoad > totalCap) {
+      sub.textContent = 'Total load (' + totalLoad + ' MW) exceeds available generation (' + totalCap + ' MW)';
+    } else {
+      sub.textContent = 'Network constraints prevent feasible dispatch';
+    }
+    LINE_DEFS.forEach(function(ld) {
+      var key = ld.from + '-' + ld.to;
+      svgRoot.select('.line-' + key).attr('stroke', '#1e293b').attr('stroke-width', 2).attr('filter', null).style('animation', 'none');
+      svgRoot.select('.glow-' + key).attr('opacity', 0);
+      if (particleState[key]) particleState[key].count = 0;
+    });
+    return;
+  }
+
+  infeasEl.classList.remove('show');
+
+  var dispatch = result.dispatch;
+  var flows = result.flows;
+  var lmps = result.lmps;
+
+  // Update lines
+  LINE_DEFS.forEach(function(ld) {
+    var key = ld.from + '-' + ld.to;
+    var flow = flows[key];
+    if (!flow) return;
+
+    var pct = flow.loading;
+    var col = lineColor(pct);
+    var wid = lineWidth(pct);
+    var p1 = BUS_POS[ld.from], p2 = BUS_POS[ld.to];
+    var off = FLOW_LABEL_OFFSETS[key] || { dx:0, dy:0 };
+    var mx = (p1.x + p2.x) / 2 + off.dx;
+    var my = (p1.y + p2.y) / 2 + off.dy;
+
+    var lineEl = svgRoot.select('.line-' + key);
+    lineEl.transition().duration(300)
+      .attr('stroke', col)
+      .attr('stroke-width', wid);
+
+    // Glow
+    var glowEl = svgRoot.select('.glow-' + key);
+    if (pct >= 99.5) {
+      lineEl.attr('filter', 'url(#glow-red)');
+      glowEl.attr('stroke', '#ef4444').attr('stroke-width', wid + 8).attr('opacity', 0.15);
+    } else if (pct >= 50) {
+      lineEl.attr('filter', null);
+      glowEl.attr('stroke', col).attr('stroke-width', wid + 4).attr('opacity', 0.08);
+    } else {
+      lineEl.attr('filter', null);
+      glowEl.attr('opacity', 0);
+    }
+
+    // Flow label
+    var arrow = flow.MW >= -0.05 ? ' ▶' : ' ◀';
+    var labelText = Math.abs(flow.MW).toFixed(1) + ' MW' + arrow;
+    svgRoot.select('.flow-lbl-' + key)
+      .attr('fill', col)
+      .attr('x', mx).attr('y', my)
+      .text(labelText);
+
+    var textLen = labelText.length * 6 + 12;
+    svgRoot.select('.flow-bg-' + key)
+      .attr('x', mx - textLen/2).attr('y', my - 10)
+      .attr('width', textLen).attr('height', 18)
+      .attr('stroke', col);
+
+    // Particles
+    if (particleState[key]) {
+      var absMW = Math.abs(flow.MW);
+      particleState[key].speed = Math.max(pct / 100 * 0.005, 0.0003);
+      particleState[key].dir = flow.MW >= -0.05 ? 1 : -1;
+      particleState[key].color = col;
+      if (absMW < 1) particleState[key].count = 0;
+      else if (absMW < 20) particleState[key].count = 2;
+      else if (absMW < 40) particleState[key].count = 3;
+      else if (absMW < 60) particleState[key].count = 4;
+      else particleState[key].count = 5;
+    }
+  });
+
+  // Update bus nodes
+  [1,2,3,4,5].forEach(function(bus) {
+    var lmp = lmps ? lmps[bus] : null;
+    var col = lmpColor(lmp);
+    var lmpText = lmp != null ? '$' + lmp.toFixed(2) : '—';
+
+    var totalLoad = appState.loads[bus] || 0;
+    var totalGen = 0;
+    Object.keys(appState.generators).forEach(function(id) {
+      if (appState.generators[id].bus === bus) totalGen += (dispatch[id] || 0);
+    });
+
+    svgRoot.select('.bus-rect-' + bus)
+      .transition().duration(300)
+      .attr('stroke', totalGen > 0.5 ? col : '#162040');
+
+    svgRoot.select('.bus-accent-' + bus)
+      .transition().duration(300)
+      .attr('fill', col);
+
+    svgRoot.select('.bus-lmp-' + bus)
+      .transition().duration(300)
+      .attr('fill', col)
+      .text(lmpText);
+
+    svgRoot.select('.bus-load-' + bus)
+      .text(totalLoad > 0 ? 'Load: ' + totalLoad + ' MW' : '');
+
+    svgRoot.select('.bus-gen-' + bus)
+      .attr('fill', totalGen > 0.5 ? '#10b981' : '#334155')
+      .text(totalGen > 0.5 ? 'Gen: ' + totalGen.toFixed(0) + ' MW' : '');
+  });
+
+  // Update generators
+  Object.keys(dispatch).forEach(function(gid) {
+    var mw = dispatch[gid];
+    var g = appState.generators[gid];
+    var col = FUEL_COLORS[g.fuel];
+    var on = mw > 0.5;
+    var capPct = g.pmax > 0 ? mw / g.pmax : 0;
+
+    svgRoot.select('.gen-bg-' + gid)
+      .transition().duration(300)
+      .attr('opacity', on ? 0.25 : 0.06)
+      .attr('stroke-width', on ? 1.5 : 0.5);
+
+    svgRoot.select('.gen-mw-' + gid)
+      .transition().duration(300)
+      .attr('fill', on ? '#e2e8f0' : '#334155')
+      .text(on ? mw.toFixed(0) + ' MW' : 'OFF');
+
+    svgRoot.select('.gen-cap-' + gid)
+      .transition().duration(300)
+      .attr('width', Math.max(capPct * (GEN_W - 4), 0));
+  });
+}
+
+
+
+// ================================================================
+// 9. DASHBOARD UPDATE
+// ================================================================
+function updateDashboard(result) {
+  if (!result) return;
+
+  if (!result.feasible) {
+    document.getElementById('total-cost').textContent = 'INFEASIBLE';
+    document.getElementById('total-cost').style.color = '#ef4444';
+    document.getElementById('cost-delta').textContent = 'System constraints cannot be satisfied';
+    document.getElementById('cost-delta').style.color = '#ef4444';
+    document.getElementById('status-badge').textContent = 'INFEASIBLE';
+    document.getElementById('status-badge').className = 'badge badge-red';
+    return;
+  }
+
+  var totalCost = result.totalCost;
+  var dispatch = result.dispatch;
+  var flows = result.flows;
+  var lmps = result.lmps;
+
+  var totalLoad = 0;
+  Object.values(appState.loads).forEach(function(v) { totalLoad += v; });
+  var totalGen = 0;
+  Object.values(dispatch).forEach(function(v) { totalGen += v; });
+  var totalCap = 0;
+  Object.values(appState.generators).forEach(function(g) { totalCap += g.pmax; });
+
+  // System overview
+  document.getElementById('total-cost').textContent = '$' + totalCost.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '/hr';
+  document.getElementById('total-cost').style.color = '#10b981';
+
+  // Delta vs base
+  if (baseCaseCost != null) {
+    var delta = totalCost - baseCaseCost;
+    if (Math.abs(delta) < 0.5) {
+      document.getElementById('cost-delta').textContent = 'Base case';
+      document.getElementById('cost-delta').style.color = '#64748b';
+    } else {
+      var absDelta = Math.round(Math.abs(delta));
+      var absPct = (Math.abs(delta) / baseCaseCost * 100).toFixed(1);
+      var sign = delta > 0 ? '+' : '-';
+      document.getElementById('cost-delta').textContent = sign + '$' + absDelta.toLocaleString() + ' (' + sign + absPct + '%)';
+      document.getElementById('cost-delta').style.color = delta > 0 ? '#ef4444' : '#10b981';
+    }
+  }
+
+  // Status badge
+  var congestedCount = 0;
+  var maxLoading = 0;
+  Object.values(flows).forEach(function(f) {
+    if (f.loading >= 99.5) congestedCount++;
+    if (f.loading > maxLoading) maxLoading = f.loading;
+  });
+
+  if (congestedCount > 0) {
+    document.getElementById('status-badge').textContent = 'CONGESTED';
+    document.getElementById('status-badge').className = 'badge badge-amber';
+  } else {
+    document.getElementById('status-badge').textContent = 'OPTIMAL';
+    document.getElementById('status-badge').className = 'badge badge-green';
+  }
+
+  // Stat grid
+  document.getElementById('stat-gen').textContent = totalGen.toFixed(2) + ' MW';
+  document.getElementById('stat-load').textContent = totalLoad.toFixed(2) + ' MW';
+  document.getElementById('stat-congested').textContent = congestedCount + ' / 6';
+  document.getElementById('stat-congested').style.color = congestedCount > 0 ? '#ef4444' : '#10b981';
+  document.getElementById('stat-max-loading').textContent = maxLoading.toFixed(1) + '%';
+  document.getElementById('stat-max-loading').style.color = lineColor(maxLoading);
+
+  // Congestion rent
+  var rent = 0;
+  Object.values(flows).forEach(function(f) {
+    var lf = (lmps && lmps[f.from]) ? lmps[f.from] : 0;
+    var lt = (lmps && lmps[f.to]) ? lmps[f.to] : 0;
+    rent += (lt - lf) * f.MW;
+  });
+  document.getElementById('stat-rent').textContent = '$' + Math.max(0, Math.abs(rent)).toFixed(2);
+
+  // LMP spread
+  var validLMPs = lmps ? Object.values(lmps).filter(function(v) { return v != null; }) : [];
+  var minLmp = validLMPs.length ? Math.min.apply(null, validLMPs) : 0;
+  var maxLmp = validLMPs.length ? Math.max.apply(null, validLMPs) : 0;
+  var spread = maxLmp - minLmp;
+  document.getElementById('stat-spread').textContent = '$' + spread.toFixed(2);
+
+  // LMP range
+  document.getElementById('lmp-range').innerHTML = 'LMP Range: <span style="color:' + lmpColor(minLmp) + '">$' + minLmp.toFixed(2) + '</span> — <span style="color:' + lmpColor(maxLmp) + '">$' + maxLmp.toFixed(2) + '</span>';
+
+  // Header
+  document.getElementById('header-load').textContent = 'LOAD: ' + totalLoad.toFixed(0) + ' MW';
+  document.getElementById('header-load-bar').style.width = (totalCap > 0 ? totalLoad / totalCap * 100 : 0) + '%';
+
+  // Status indicator
+  updateStatusIndicator(true, congestedCount);
+
+  // LMP Heatmap
+  updateLMPHeatmap(lmps, minLmp, maxLmp);
+
+  // Merit order
+  updateMeritOrder(dispatch);
+
+  // Donut
+  buildDonut(dispatch);
+
+  // Line loading
+  updateLineLoading(flows);
+
+  // Cost breakdown
+  updateCostBreakdown(dispatch, totalCost);
+
+  // Analytics
+  updateAnalytics(result);
+}
+
+function updateStatusIndicator(feasible, congestedCount) {
+  var dot = document.getElementById('status-dot');
+  var text = document.getElementById('status-text');
+
+  if (!feasible) {
+    dot.className = 'pulse-red';
+    text.textContent = 'INFEASIBLE';
+    text.style.color = '#ef4444';
+  } else if (congestedCount > 0) {
+    dot.className = 'pulse-amber';
+    text.textContent = 'CONGESTED';
+    text.style.color = '#f59e0b';
+  } else {
+    dot.className = 'pulse-green';
+    text.textContent = 'SYSTEM OPTIMAL';
+    text.style.color = '#10b981';
+  }
+}
+
+function updateLMPHeatmap(lmps, minLmp, maxLmp) {
+  var grid = document.getElementById('lmp-grid');
+  grid.innerHTML = '';
+
+  var allEqual = (maxLmp - minLmp) < 0.05;
+  var minBus = 1, maxBus = 1;
+
+  [1,2,3,4,5].forEach(function(bus) {
+    var lmp = lmps ? lmps[bus] : null;
+    var col = lmp != null ? lmpHeatColor(lmp, minLmp, maxLmp) : 'rgba(100,116,139,0.1)';
+    var textCol = lmpColor(lmp);
+    var load = appState.loads[bus] || 0;
+
+    if (lmp != null && lmp <= minLmp) minBus = bus;
+    if (lmp != null && lmp >= maxLmp) maxBus = bus;
+
+    var cell = document.createElement('div');
+    cell.className = 'lmp-cell';
+    cell.style.background = col;
+    cell.style.borderColor = textCol + '33';
+    cell.innerHTML = '<span class="bus-label">Bus ' + bus + '</span>'
+      + '<span class="lmp-val" style="color:' + textCol + '">' + (lmp != null ? '$' + lmp.toFixed(2) : '—') + '</span>'
+      + '<span class="load-val">' + (load > 0 ? load + ' MW' : '—') + '</span>';
+    grid.appendChild(cell);
+  });
+
+  var uniformLabel = document.getElementById('lmp-uniform-label');
+  uniformLabel.textContent = allEqual ? 'UNIFORM — No congestion' : '';
+
+  var minMaxEl = document.getElementById('lmp-min-max');
+  if (!allEqual && minLmp != null) {
+    minMaxEl.innerHTML = 'Min: <span style="color:#10b981">$' + minLmp.toFixed(2) + '</span> (Bus ' + minBus + ') · Max: <span style="color:#ef4444">$' + maxLmp.toFixed(2) + '</span> (Bus ' + maxBus + ')';
+  } else {
+    minMaxEl.textContent = '';
+  }
+}
+
+function updateMeritOrder(dispatch) {
+  var stack = document.getElementById('merit-stack');
+  stack.innerHTML = '';
+  var legend = document.getElementById('merit-legend');
+  legend.innerHTML = '';
+
+  var sorted = Object.entries(appState.generators)
+    .sort(function(a,b) { return a[1].cost - b[1].cost; });
+
+  var totalGen = 0;
+  Object.values(dispatch).forEach(function(v) { totalGen += v; });
+  if (totalGen < 0.1) return;
+
+  var left = 0;
+  sorted.forEach(function(entry) {
+    var gid = entry[0], g = entry[1];
+    var mw = dispatch[gid] || 0;
+    var col = FUEL_COLORS[g.fuel];
+
+    if (mw > 0.1) {
+      var widthPct = (mw / totalGen) * 100;
+      var seg = document.createElement('div');
+      seg.className = 'merit-seg';
+      seg.style.left = left + '%';
+      seg.style.width = widthPct + '%';
+      seg.style.background = col;
+      seg.title = gid + ': ' + mw.toFixed(1) + ' MW @ $' + g.cost + '/MWh';
+      stack.appendChild(seg);
+      left += widthPct;
+    }
+
+    var item = document.createElement('span');
+    item.className = 'merit-legend-item';
+    item.innerHTML = '<span class="fuel-dot" style="background:' + col + ';width:6px;height:6px;"></span>'
+      + gid + ' $' + g.cost;
+    item.style.opacity = mw > 0.1 ? '1' : '0.4';
+    legend.appendChild(item);
+  });
+}
+
+function buildDonut(dispatch) {
+  var svgW = 310, svgH = 120;
+  var rOuter = 46, rInner = 26;
+  var cx = 65, cy = svgH / 2;
+
+  var donutSvg = d3.select('#donut-svg');
+  donutSvg.selectAll('*').remove();
+
+  var fuelMap = {};
+  Object.keys(appState.generators).forEach(function(gid) {
+    var g = appState.generators[gid];
+    var mw = dispatch[gid] || 0;
+    if (mw > 0.1) fuelMap[g.fuel] = (fuelMap[g.fuel] || 0) + mw;
+  });
+
+  var totalMW = Object.values(fuelMap).reduce(function(a,b) { return a+b; }, 0);
+  if (totalMW < 1) {
+    donutSvg.append('text').attr('x', cx).attr('y', cy)
+      .attr('text-anchor','middle').attr('fill','#334155').attr('font-size','11')
+      .text('No generation');
+    return;
+  }
+
+  var data = Object.entries(fuelMap).map(function(e) { return { fuel: e[0], mw: e[1] }; });
+  var pie = d3.pie().value(function(d) { return d.mw; }).sort(null);
+  var arc = d3.arc().innerRadius(rInner).outerRadius(rOuter);
+  var pieData = pie(data);
+
+  var gg = donutSvg.append('g').attr('transform', 'translate(' + cx + ',' + cy + ')');
+
+  gg.selectAll('path').data(pieData).join('path')
+    .attr('d', arc)
+    .attr('fill', function(d) { return FUEL_COLORS[d.data.fuel]; })
+    .attr('stroke', '#06080f')
+    .attr('stroke-width', 2);
+
+  gg.append('text').attr('text-anchor','middle').attr('y', -4)
+    .attr('font-size', '14').attr('font-weight', '600').attr('fill', '#f1f5f9')
+    .attr('font-family', "'IBM Plex Mono', monospace")
+    .text(totalMW.toFixed(0));
+  gg.append('text').attr('text-anchor','middle').attr('y', 10)
+    .attr('font-size', '8').attr('fill', '#64748b')
+    .text('MW');
+
+  // Legend on right
+  var ly = 10;
+  data.forEach(function(d) {
+    var col = FUEL_COLORS[d.fuel];
+    var pct = (d.mw / totalMW * 100).toFixed(0);
+
+    donutSvg.append('rect')
+      .attr('x', 130).attr('y', ly)
+      .attr('width', 8).attr('height', 8)
+      .attr('rx', 2).attr('fill', col);
+
+    donutSvg.append('text')
+      .attr('x', 142).attr('y', ly + 8)
+      .attr('font-size', '10').attr('fill', '#94a3b8')
+      .text(d.fuel);
+
+    donutSvg.append('text')
+      .attr('x', 240).attr('y', ly + 8)
+      .attr('text-anchor', 'end')
+      .attr('font-family', "'IBM Plex Mono', monospace")
+      .attr('font-size', '10').attr('fill', '#f1f5f9')
+      .text(d.mw.toFixed(0) + ' MW');
+
+    donutSvg.append('text')
+      .attr('x', 290).attr('y', ly + 8)
+      .attr('text-anchor', 'end')
+      .attr('font-family', "'IBM Plex Mono', monospace")
+      .attr('font-size', '10').attr('fill', '#64748b')
+      .text(pct + '%');
+
+    ly += 22;
+  });
+}
+
+function updateLineLoading(flows) {
+  var div = document.getElementById('line-loading-chart');
+  div.innerHTML = '';
+  var sorted = Object.entries(flows).sort(function(a,b) { return b[1].loading - a[1].loading; });
+
+  sorted.forEach(function(entry) {
+    var key = entry[0], f = entry[1];
+    var col = lineColor(f.loading);
+    var pctCapped = Math.min(f.loading, 100);
+    var congested = f.loading >= 99.5;
+
+    var row = document.createElement('div');
+    row.className = 'line-bar-row' + (congested ? ' congested' : '');
+    row.innerHTML = '<span class="line-label">' + key.replace('-', '→') + '</span>'
+      + '<div class="line-bar-bg">'
+      + '<div class="line-bar-fill" style="width:' + pctCapped.toFixed(1) + '%;background:' + col + ';' + (congested ? 'animation:congested-pulse 1.5s infinite;' : '') + '"></div>'
+      + '</div>'
+      + '<span class="line-pct" style="color:' + col + '">' + f.loading.toFixed(1) + '%</span>'
+      + '<span class="line-mw">' + (f.MW >= -0.05 ? '+' : '') + f.MW.toFixed(1) + '</span>';
+    div.appendChild(row);
+  });
+}
+
+function updateCostBreakdown(dispatch, totalCost) {
+  var tbody = document.getElementById('cost-table-body');
+  tbody.innerHTML = '';
+
+  var entries = Object.entries(appState.generators)
+    .map(function(entry) {
+      var gid = entry[0], g = entry[1];
+      var mw = dispatch[gid] || 0;
+      return { gid: gid, fuel: g.fuel, mw: mw, cost: g.cost, contrib: mw * g.cost };
+    })
+    .sort(function(a,b) { return b.contrib - a.contrib; });
+
+  var grandTotal = entries.reduce(function(s, e) { return s + e.contrib; }, 0);
+
+  entries.forEach(function(e) {
+    if (e.mw < 0.1) return;
+    var col = FUEL_COLORS[e.fuel];
+    var pct = grandTotal > 0 ? (e.contrib / grandTotal * 100).toFixed(1) : '0.0';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><span style="color:' + col + ';font-weight:700;">' + e.gid + '</span></td>'
+      + '<td style="color:#64748b;">' + e.fuel + '</td>'
+      + '<td class="num">' + e.mw.toFixed(1) + '</td>'
+      + '<td class="num">$' + e.cost + '</td>'
+      + '<td class="num" style="color:#f1f5f9;">$' + e.contrib.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '</td>'
+      + '<td class="num" style="color:#64748b;">' + pct + '%</td>';
+    tbody.appendChild(tr);
+  });
+
+  var totalRow = document.createElement('tr');
+  totalRow.className = 'total-row';
+  var totalGen = entries.reduce(function(s, e) { return s + e.mw; }, 0);
+  totalRow.innerHTML = '<td colspan="2" style="color:#94a3b8;font-weight:600;">TOTAL</td>'
+    + '<td class="num">' + totalGen.toFixed(1) + '</td>'
+    + '<td class="num"></td>'
+    + '<td class="num" style="color:#10b981;">$' + grandTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '</td>'
+    + '<td class="num"></td>';
+  tbody.appendChild(totalRow);
+}
+
+function updateAnalytics(result) {
+  var div = document.getElementById('analytics-content');
+  div.innerHTML = '';
+
+  if (!result || !result.feasible) return;
+
+  // Wind savings
+  var windGen = appState.generators.G4;
+  var windItem = document.createElement('div');
+  windItem.className = 'analytics-item';
+  if (windGen.pmax > 0) {
+    var noWindState = deepClone(appState);
+    noWindState.generators.G4.pmax = 0;
+    var noWindCost = solveForCost(noWindState);
+    if (noWindCost != null) {
+      var savings = noWindCost - result.totalCost;
+      windItem.innerHTML = '<div class="analytics-label">Wind Impact</div>'
+        + '<div class="analytics-value">Wind at <span class="mono">' + windGen.pmax + ' MW</span> saves <span class="mono" style="color:#10b981;">$' + savings.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '/hr</span> vs no-wind</div>';
+    } else {
+      windItem.innerHTML = '<div class="analytics-label">Wind Impact</div>'
+        + '<div class="analytics-value">System infeasible without wind</div>';
+    }
+  } else {
+    windItem.innerHTML = '<div class="analytics-label">Wind Impact</div>'
+      + '<div class="analytics-value">No wind available — system at higher cost</div>';
+  }
+  div.appendChild(windItem);
+
+  // Bottleneck
+  var maxLoad = 0, bottleneck = null;
+  Object.entries(result.flows).forEach(function(entry) {
+    if (entry[1].loading > maxLoad) {
+      maxLoad = entry[1].loading;
+      bottleneck = entry[0];
+    }
+  });
+  var bnItem = document.createElement('div');
+  bnItem.className = 'analytics-item';
+  if (bottleneck) {
+    bnItem.innerHTML = '<div class="analytics-label">Bottleneck</div>'
+      + '<div class="analytics-value">Line <span class="mono">' + bottleneck.replace('-', '→') + '</span> at <span class="mono" style="color:' + lineColor(maxLoad) + '">' + maxLoad.toFixed(1) + '%</span> — most likely to congest</div>';
+  }
+  div.appendChild(bnItem);
+
+  // Cheapest unused
+  var cheapest = null;
+  Object.entries(appState.generators)
+    .sort(function(a,b) { return a[1].cost - b[1].cost; })
+    .forEach(function(entry) {
+      var gid = entry[0], g = entry[1];
+      var mw = result.dispatch[gid] || 0;
+      var avail = g.pmax - mw;
+      if (avail > 0.5 && !cheapest) {
+        cheapest = { gid: gid, bus: g.bus, cost: g.cost, avail: avail.toFixed(0) };
+      }
+    });
+
+  if (cheapest) {
+    var cuItem = document.createElement('div');
+    cuItem.className = 'analytics-item';
+    cuItem.innerHTML = '<div class="analytics-label">Cheapest Unused Capacity</div>'
+      + '<div class="analytics-value"><span class="mono">' + cheapest.gid + '</span> (Bus ' + cheapest.bus + ', $' + cheapest.cost + '/MWh) — <span class="mono">' + cheapest.avail + ' MW</span> available</div>';
+    div.appendChild(cuItem);
+  }
+}
+
+// ================================================================
+// 10. CONTROLS BUILDER
+// ================================================================
+function buildControls() {
+
+  // Load sliders
+  var loadDiv = document.getElementById('load-sliders');
+  [2,3,4,5].forEach(function(bus) {
+    var def = DEFAULT_LOADS[bus];
+    var row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = '<div class="slider-label-row">'
+      + '<span class="slider-label">Bus ' + bus + '</span>'
+      + '<span class="slider-value mono" id="lbl-load-' + bus + '">' + def + ' MW</span>'
+      + '</div>'
+      + '<input type="range" id="load-slider-' + bus + '" min="0" max="' + (def*3) + '" step="1" value="' + def + '">';
+    loadDiv.appendChild(row);
+
+    var sl = document.getElementById('load-slider-' + bus);
+    updateSliderFill(sl, '#2563eb');
+    sl.addEventListener('input', (function(b) {
+      return function(e) {
+        var v = parseFloat(e.target.value);
+        appState.loads[b] = v;
+        document.getElementById('lbl-load-' + b).textContent = v + ' MW';
+        updateSliderFill(e.target, '#2563eb');
+        updateTotalLoadDisplay();
+        markCustom();
+        scheduleUpdate();
+      };
+    })(bus));
+  });
+
+  // Wind slider
+  var ws = document.getElementById('wind-slider');
+  updateSliderFill(ws, '#10b981');
+  ws.addEventListener('input', function(e) {
+    var v = parseFloat(e.target.value);
+    appState.generators.G4.pmax = v;
+    document.getElementById('lbl-wind').textContent = v + ' MW';
+    updateSliderFill(e.target, '#10b981');
+    markCustom();
+    scheduleUpdate();
+  });
+
+  // Line capacity sliders
+  var lineDiv = document.getElementById('line-sliders');
+  appState.lines.forEach(function(ln, idx) {
+    var key = ln.from + '-' + ln.to;
+    var def = ln.fmaxDefault;
+    var row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = '<div class="slider-label-row">'
+      + '<span class="slider-label" id="line-label-' + key + '">' + ln.from + '→' + ln.to + ' <span style="color:var(--text-3)">(' + def + ')</span></span>'
+      + '<span class="slider-value mono" id="lbl-line-' + key + '">' + def + ' MW</span>'
+      + '</div>'
+      + '<input type="range" id="line-slider-' + key + '" min="0" max="' + (def*2) + '" step="1" value="' + def + '">';
+    lineDiv.appendChild(row);
+
+    var sl = document.getElementById('line-slider-' + key);
+    updateSliderFill(sl, '#2563eb');
+    sl.addEventListener('input', (function(i, k) {
+      return function(e) {
+        var v = parseFloat(e.target.value);
+        appState.lines[i].fmax = v;
+        document.getElementById('lbl-line-' + k).textContent = v === 0 ? 'DISC' : v + ' MW';
+        updateSliderFill(e.target, '#2563eb');
+        markCustom();
+        scheduleUpdate();
+      };
+    })(idx, key));
+  });
+
+  // Generator cost sliders
+  var costDiv = document.getElementById('cost-sliders');
+  Object.entries(DEFAULT_STATE.generators).forEach(function(entry) {
+    var gid = entry[0], g = entry[1];
+    var col = FUEL_COLORS[g.fuel];
+    var row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = '<div class="slider-label-row">'
+      + '<span class="slider-label"><span class="fuel-dot" style="background:' + col + ';"></span>' + gid + '</span>'
+      + '<span class="slider-value mono" id="lbl-cost-' + gid + '">$' + g.cost + '/MWh</span>'
+      + '</div>'
+      + '<input type="range" id="cost-slider-' + gid + '" min="0" max="100" step="1" value="' + g.cost + '">';
+    costDiv.appendChild(row);
+
+    var sl = document.getElementById('cost-slider-' + gid);
+    updateSliderFill(sl, col);
+    sl.addEventListener('input', (function(id, color) {
+      return function(e) {
+        var v = parseFloat(e.target.value);
+        appState.generators[id].cost = v;
+        document.getElementById('lbl-cost-' + id).textContent = '$' + v + '/MWh';
+        updateSliderFill(e.target, color);
+        markCustom();
+        scheduleUpdate();
+      };
+    })(gid, col));
+  });
+
+  // Generator capacity sliders
+  var capDiv = document.getElementById('cap-sliders');
+  Object.entries(DEFAULT_STATE.generators).forEach(function(entry) {
+    var gid = entry[0], g = entry[1];
+    var col = FUEL_COLORS[g.fuel];
+    var row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = '<div class="slider-label-row">'
+      + '<span class="slider-label"><span class="fuel-dot" style="background:' + col + ';"></span>' + gid + ' Pmax</span>'
+      + '<span class="slider-value mono" id="lbl-cap-' + gid + '">' + g.pmax + ' MW</span>'
+      + '</div>'
+      + '<input type="range" id="cap-slider-' + gid + '" min="0" max="' + (g.pmaxDefault*2) + '" step="1" value="' + g.pmax + '">';
+    capDiv.appendChild(row);
+
+    var sl = document.getElementById('cap-slider-' + gid);
+    updateSliderFill(sl, col);
+    sl.addEventListener('input', (function(id, color) {
+      return function(e) {
+        var v = parseFloat(e.target.value);
+        appState.generators[id].pmax = v;
+        document.getElementById('lbl-cap-' + id).textContent = v + ' MW';
+        updateSliderFill(e.target, color);
+        updateTotalLoadDisplay();
+        markCustom();
+        scheduleUpdate();
+      };
+    })(gid, col));
+  });
+
+  // Collapsible section toggles
+  document.querySelectorAll('.section-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      var section = this.getAttribute('data-section');
+      var body = document.getElementById('section-' + section);
+      var isOpen = body.classList.toggle('open');
+      this.classList.toggle('open', isOpen);
+    });
+  });
+
+  // Preset pills
+  document.querySelectorAll('.preset-pill:not([disabled])').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      applyPreset(this.getAttribute('data-preset'));
+    });
+  });
+
+  // Reset button
+  document.getElementById('reset-btn').addEventListener('click', function() {
+    applyPreset('Base Case');
+  });
+
+  // Export button
+  document.getElementById('export-btn').addEventListener('click', function() {
+    var state = {
+      loads: appState.loads,
+      generators: {},
+      lines: appState.lines.map(function(ln) { return { from: ln.from, to: ln.to, fmax: ln.fmax }; })
+    };
+    Object.entries(appState.generators).forEach(function(entry) {
+      state.generators[entry[0]] = { cost: entry[1].cost, pmax: entry[1].pmax };
+    });
+    navigator.clipboard.writeText(JSON.stringify(state, null, 2)).then(function() {
+      var btn = document.getElementById('export-btn');
+      btn.textContent = '✓ Copied!';
+      setTimeout(function() { btn.textContent = '⌘ EXPORT'; }, 1500);
+    });
+  });
+}
+
+function updateTotalLoadDisplay() {
+  var total = 0;
+  Object.values(appState.loads).forEach(function(v) { total += v; });
+  var totalCap = 0;
+  Object.values(appState.generators).forEach(function(g) { totalCap += g.pmax; });
+  var el = document.getElementById('total-load-val');
+  el.textContent = total + ' MW';
+  var sumEl = document.getElementById('total-load-sum');
+  if (total > totalCap) {
+    sumEl.classList.add('warn');
+  } else {
+    sumEl.classList.remove('warn');
+  }
+}
+
+function markCustom() {
+  document.querySelectorAll('.preset-pill').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  var custom = document.querySelector('.preset-pill[data-preset="Custom"]');
+  if (custom) custom.classList.add('active');
+}
+
+function setActivePreset(name) {
+  document.querySelectorAll('.preset-pill').forEach(function(p) {
+    p.classList.toggle('active', p.getAttribute('data-preset') === name);
+  });
+}
+
+// ================================================================
+// 11. PRESETS & STATE SYNC
+// ================================================================
+function applyPreset(name) {
+  appState = deepClone(DEFAULT_STATE);
+
+  if (name === 'No Wind') {
+    appState.generators.G4.pmax = 0;
+  } else if (name === 'Peak Load') {
+    [2,3,4,5].forEach(function(b) { appState.loads[b] = Math.round(DEFAULT_LOADS[b] * 1.5); });
+  } else if (name === 'Tx Emergency') {
+    appState.lines.forEach(function(ln) { ln.fmax = Math.round(ln.fmaxDefault * 0.5); });
+  }
+
+  setActivePreset(name);
+  syncControlsToState();
+  updateTotalLoadDisplay();
+  scheduleUpdate();
+}
+
+function syncControlsToState() {
+  // Wind
+  var ws = document.getElementById('wind-slider');
+  if (ws) {
+    ws.value = appState.generators.G4.pmax;
+    document.getElementById('lbl-wind').textContent = appState.generators.G4.pmax + ' MW';
+    updateSliderFill(ws, '#10b981');
+  }
+
+  // Loads
+  [2,3,4,5].forEach(function(bus) {
+    var sl = document.getElementById('load-slider-' + bus);
+    if (sl) {
+      sl.max = Math.max(DEFAULT_LOADS[bus] * 3, appState.loads[bus]);
+      sl.value = appState.loads[bus];
+      document.getElementById('lbl-load-' + bus).textContent = appState.loads[bus] + ' MW';
+      updateSliderFill(sl, '#2563eb');
+    }
+  });
+
+  // Lines
+  appState.lines.forEach(function(ln) {
+    var key = ln.from + '-' + ln.to;
+    var sl = document.getElementById('line-slider-' + key);
+    if (sl) {
+      sl.value = ln.fmax;
+      document.getElementById('lbl-line-' + key).textContent = ln.fmax === 0 ? 'DISC' : ln.fmax + ' MW';
+      updateSliderFill(sl, '#2563eb');
+    }
+  });
+
+  // Costs
+  Object.entries(appState.generators).forEach(function(entry) {
+    var gid = entry[0], g = entry[1];
+    var sl = document.getElementById('cost-slider-' + gid);
+    if (sl) {
+      sl.value = g.cost;
+      document.getElementById('lbl-cost-' + gid).textContent = '$' + g.cost + '/MWh';
+      updateSliderFill(sl, FUEL_COLORS[g.fuel]);
+    }
+    var capSl = document.getElementById('cap-slider-' + gid);
+    if (capSl) {
+      capSl.value = g.pmax;
+      document.getElementById('lbl-cap-' + gid).textContent = g.pmax + ' MW';
+      updateSliderFill(capSl, FUEL_COLORS[g.fuel]);
+    }
+  });
+}
+
+// ================================================================
+// 12. COMPARISON OVERLAY (SPACEBAR)
+// ================================================================
+function renderComparison(curr, base) {
+  if (!curr || !curr.feasible || !base || !base.feasible) {
+    document.getElementById('comp-content').innerHTML = '<span style="color:#ef4444;">Cannot compare (infeasible)</span>';
+    return;
+  }
+
+  var deltaCost = curr.totalCost - base.totalCost;
+  var html = '';
+
+  html += '<div class="comp-row"><span class="comp-label">Total Cost</span>'
+    + '<span class="comp-val ' + (deltaCost > 0.5 ? 'comp-pos' : deltaCost < -0.5 ? 'comp-neg' : 'comp-zero') + '">'
+    + (deltaCost >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(deltaCost)).toLocaleString() + '/hr</span></div>';
+
+  html += '<div style="font-size:9px;color:#334155;margin:6px 0 3px;">Dispatch Changes</div>';
+  Object.entries(curr.dispatch).forEach(function(entry) {
+    var gid = entry[0], mw = entry[1];
+    var baseMW = base.dispatch[gid] || 0;
+    var delta = mw - baseMW;
+    if (Math.abs(delta) < 0.5) return;
+    var col = appState.generators[gid] ? FUEL_COLORS[appState.generators[gid].fuel] : '#94a3b8';
+    html += '<div class="comp-row"><span class="comp-label" style="color:' + col + '">' + gid + '</span>'
+      + '<span class="comp-val ' + (delta > 0 ? 'comp-pos' : 'comp-neg') + '">'
+      + (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' MW</span></div>';
+  });
+
+  html += '<div style="font-size:9px;color:#334155;margin:6px 0 3px;">LMPs ($/MWh)</div>';
+  [1,2,3,4,5].forEach(function(bus) {
+    var cl = curr.lmps[bus], bl = base.lmps[bus];
+    if (cl == null || bl == null) return;
+    var delta = cl - bl;
+    html += '<div class="comp-row"><span class="comp-label">Bus ' + bus + '</span>'
+      + '<span class="comp-val ' + (Math.abs(delta) < 0.05 ? 'comp-zero' : delta > 0 ? 'comp-pos' : 'comp-neg') + '">'
+      + (Math.abs(delta) < 0.05 ? '=' : (delta > 0 ? '+' : '')) + delta.toFixed(2) + '</span></div>';
+  });
+
+  document.getElementById('comp-content').innerHTML = html;
+}
+
+// ================================================================
+// 13. KEYBOARD SHORTCUTS
+// ================================================================
+document.addEventListener('keydown', function(e) {
+  // Don't capture when focused on input
+  if (e.target.tagName === 'INPUT') return;
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    showComparison = !showComparison;
+    if (showComparison) {
+      baseResult = solveDCOPF(deepClone(DEFAULT_STATE));
+      document.getElementById('comparison-overlay').style.display = 'block';
+      document.getElementById('comparison-banner').style.display = 'block';
+      renderComparison(currentResult, baseResult);
+    } else {
+      document.getElementById('comparison-overlay').style.display = 'none';
+      document.getElementById('comparison-banner').style.display = 'none';
+    }
+  }
+
+  if (e.code === 'KeyR' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    applyPreset('Base Case');
+  }
+
+  if (e.code === 'Digit1') { e.preventDefault(); applyPreset('Base Case'); }
+  if (e.code === 'Digit2') { e.preventDefault(); applyPreset('No Wind'); }
+  if (e.code === 'Digit3') { e.preventDefault(); applyPreset('Peak Load'); }
+  if (e.code === 'Digit4') { e.preventDefault(); applyPreset('Tx Emergency'); }
+
+  if (e.code === 'Escape') {
+    showComparison = false;
+    document.getElementById('comparison-overlay').style.display = 'none';
+    document.getElementById('comparison-banner').style.display = 'none';
+  }
+});
+
+// ================================================================
+// 14. MAIN UPDATE LOOP
+// ================================================================
+var updateTimer = null;
+
+function scheduleUpdate() {
+  if (updateTimer) cancelAnimationFrame(updateTimer);
+  updateTimer = requestAnimationFrame(doUpdate);
+}
+
+function doUpdate() {
+  var t0 = performance.now();
+  currentResult = solveDCOPF(appState);
+  var elapsed = (performance.now() - t0).toFixed(1);
+
+  updateNetwork(currentResult);
+  updateDashboard(currentResult);
+
+  document.getElementById('solve-time').textContent = 'Solved in ' + elapsed + 'ms';
+
+  if (!currentResult.feasible) {
+    updateStatusIndicator(false, 0);
+  }
+
+  if (showComparison && baseResult) {
+    renderComparison(currentResult, baseResult);
+  }
+}
+
+// ================================================================
+// 15. INITIALIZATION
+// ================================================================
+window.addEventListener('load', function() {
+  function waitForSolver(attempts) {
+    if (typeof solver !== 'undefined' && solver.Solve) {
+      buildControls();
+      initNetwork();
+
+      // Compute base case cost for delta display
+      var baseState = deepClone(DEFAULT_STATE);
+      var baseRes = solveDCOPF(baseState);
+      if (baseRes.feasible) baseCaseCost = baseRes.totalCost;
+
+      requestAnimationFrame(function(ts) {
+        lastAnimTime = ts;
+        animateParticles(ts);
+      });
+
+      doUpdate();
+    } else if (attempts > 0) {
+      setTimeout(function() { waitForSolver(attempts - 1); }, 200);
+    } else {
+      document.getElementById('status-text').textContent = 'SOLVER LOAD ERROR';
+      document.getElementById('status-dot').className = 'pulse-red';
+    }
+  }
+  waitForSolver(40);
+});
+</script>
+</body>
+</html>
