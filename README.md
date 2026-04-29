@@ -7,7 +7,9 @@ and renewables on the IEEE 5/14/30-bus test systems — with the original IE 590
 research code (Perfect Foresight / MPC / Myopic single-asset SDP) intact under
 `src/`.
 
-> **Try it live**: `https://battery-market-maker.com` *(Vercel + Railway)*
+> **Try it live**
+> &nbsp;&nbsp;App: <https://battery-market-maker.vercel.app>
+> &nbsp;&nbsp;API: <https://battery-market-maker-production.up.railway.app> · [`/docs`](https://battery-market-maker-production.up.railway.app/docs) · [`/health`](https://battery-market-maker-production.up.railway.app/health)
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template) &nbsp; [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 

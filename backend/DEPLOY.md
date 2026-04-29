@@ -36,15 +36,30 @@ Set these in the Railway service settings:
 
 | Variable          | Value                                     | Notes                                  |
 |-------------------|-------------------------------------------|----------------------------------------|
-| `CORS_ORIGINS`    | `https://your-vercel-domain.vercel.app`   | Add your frontend domain               |
-| `PORT`            | (auto)                                    | Railway sets this — don't override     |
+| `CORS_ORIGINS`    | `https://your-vercel-domain.vercel.app`   | Frontend origin(s), no trailing slash  |
+| `PORT`            | (auto)                                    | Railway injects this — don't override  |
 
-### 4. Health check
+> **Watch out — `CORS_ORIGINS` must have no trailing slash.** Origins are
+> matched as exact strings; `https://example.com/` will silently fail the
+> preflight. Comma-separate multiple origins.
+
+### 4. Public Networking target port
+
+> **Watch out — Railway overrides `PORT`.** The Dockerfile defaults to 8000,
+> but at deploy time Railway injects its own value (currently 8080). In
+> **Settings → Networking → Public Networking**, set the **Target Port** to
+> the value Railway assigns (typically `8080`) so the public URL forwards
+> traffic to the right container port. If the public URL returns 502 right
+> after deploy, this mismatch is the most common cause — confirm the port in
+> the deploy logs (`Uvicorn running on http://0.0.0.0:<port>`) and update the
+> target port to match.
+
+### 5. Health check
 
 `railway.json` already points the health check at `/health`. Railway will mark
 the deployment healthy once that returns 200.
 
-### 5. Custom domain
+### 6. Custom domain
 
 In **Settings → Networking** add a custom domain like `api.battery-market-maker.com`,
 then set a CNAME record in your DNS provider:
@@ -55,7 +70,7 @@ api.battery-market-maker.com   CNAME   <railway-provided-target>
 
 SSL is provisioned automatically.
 
-### 6. Updating the frontend
+### 7. Updating the frontend
 
 After the API URL is final, set `VITE_API_BASE_URL` in the Vercel project to
 `https://api.<your-domain>` and redeploy the frontend.
