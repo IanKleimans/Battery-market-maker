@@ -264,3 +264,55 @@ export type WsEvent =
   | { event: 'heartbeat'; elapsed: number; phase: string }
   | { event: 'completed'; elapsed: number; result: MultiPeriodSolution }
   | { event: 'failed'; error: string | unknown }
+
+// Stackelberg / market-maker analysis
+export interface StackelbergRequest {
+  network: NetworkName
+  horizon_hours: number
+  timestep_minutes: number
+  load_multiplier: number
+  batteries: BatteryAsset[]
+  data_centers: DataCenterAsset[]
+  renewables: RenewableAsset[]
+  forecast: ForecastSpec
+  leader_data_center_id?: string | null
+}
+
+export interface BusLMPImpact {
+  bus: number
+  name: string
+  lmp_price_taker: number
+  lmp_stackelberg_aware: number
+  delta: number
+}
+
+export interface IterationTrace {
+  iteration: number
+  leader_revenue: number
+  max_lmp_change: number
+}
+
+export interface StackelbergSolution {
+  network: NetworkName
+  horizon_hours: number
+  timestep_minutes: number
+  n_timesteps: number
+  timestamps: string[]
+  leader_data_center_id: string
+  leader_bus: number
+  price_taker_total_system_cost: number
+  price_taker_lmps_per_bus_avg: Record<number, number>
+  price_taker_leader_revenue: number
+  price_taker_leader_consumption_mw: number[]
+  stackelberg_total_system_cost: number
+  stackelberg_lmps_per_bus_avg: Record<number, number>
+  stackelberg_leader_revenue: number
+  stackelberg_leader_consumption_mw: number[]
+  stackelberg_gain_usd: number
+  max_lmp_impact_usd_per_mwh: number
+  market_power_index: number
+  bus_impacts: BusLMPImpact[]
+  iterations: IterationTrace[]
+  converged: boolean
+  method: 'iterative_best_response'
+}

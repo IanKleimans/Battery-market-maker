@@ -231,3 +231,76 @@ def test_singleperiod_solver_stats_populated(client) -> None:
     assert body["solver_stats"]["solver"] in ("HIGHS", "ECOS")
     assert body["solver_stats"]["n_variables"] > 0
     assert body["solver_stats"]["n_constraints"] > 0
+
+
+def test_stackelberg_runs_on_ieee14(client) -> None:
+    """The Stackelberg endpoint returns both PT and SA branches with a usable gain."""
+    body = client.post(
+        "/api/v1/optimization/stackelberg",
+        json={
+            "network": "ieee14",
+            "horizon_hours": 12,
+            "timestep_minutes": 60,
+            "load_multiplier": 1.0,
+            "data_centers": [
+                {
+                    "id": "campus-1",
+                    "bus": 9,
+                    "c_max_mw": 500,
+                    "compute_value_per_mwh": 80,
+                    "flex_min": 0.4,
+                    "flex_max": 1.0,
+                    "sla_penalty_per_mwh": 15,
+                }
+            ],
+        },
+    ).json()
+    assert body["leader_data_center_id"] == "campus-1"
+    assert body["leader_bus"] == 9
+    assert body["n_timesteps"] == 12
+    assert "stackelberg_gain_usd" in body
+    assert isinstance(body["max_lmp_impact_usd_per_mwh"], (int, float))
+    assert body["max_lmp_impact_usd_per_mwh"] >= 0
+    assert "iterations" in body and len(body["iterations"]) >= 1
+    assert isinstance(body["bus_impacts"], list) and len(body["bus_impacts"]) > 0
+    assert body["method"] == "iterative_best_response"
+
+
+def test_stackelberg_requires_a_data_center(client) -> None:
+    r = client.post(
+        "/api/v1/optimization/stackelberg",
+        json={
+            "network": "ieee14",
+            "horizon_hours": 6,
+            "timestep_minutes": 60,
+            "load_multiplier": 1.0,
+            "data_centers": [],
+        },
+    )
+    assert r.status_code == 400
+    assert "data center" in r.json()["detail"].lower()
+
+
+def test_stackelberg_invalid_leader_id_returns_400(client) -> None:
+    r = client.post(
+        "/api/v1/optimization/stackelberg",
+        json={
+            "network": "ieee14",
+            "horizon_hours": 6,
+            "timestep_minutes": 60,
+            "load_multiplier": 1.0,
+            "data_centers": [
+                {
+                    "id": "campus-1",
+                    "bus": 9,
+                    "c_max_mw": 200,
+                    "compute_value_per_mwh": 80,
+                    "flex_min": 0.4,
+                    "flex_max": 1.0,
+                    "sla_penalty_per_mwh": 15,
+                }
+            ],
+            "leader_data_center_id": "not-a-real-id",
+        },
+    )
+    assert r.status_code == 400

@@ -29,6 +29,7 @@ import {
 } from '@/components/network'
 import { LiveCalculations } from '@/components/network/LiveCalculations'
 import { LiveControls } from '@/components/network/LiveControls'
+import { MarketMakerPanel } from '@/components/network/MarketMakerPanel'
 import { SolverTraceDrawer } from '@/components/network/SolverTraceDrawer'
 import type {
   BatteryAsset,
@@ -66,18 +67,18 @@ function TopBar() {
         ]}
       />
       <div className="inline-flex items-center gap-1 p-1 rounded bg-surface border border-border">
-        {(['live', 'optimization'] as const).map((m) => (
+        {(['live', 'optimization', 'market_maker'] as const).map((m) => (
           <button
             key={m}
             type="button"
-            className={`h-7 px-3 text-xs rounded font-medium transition-colors capitalize ${
+            className={`h-7 px-3 text-xs rounded font-medium transition-colors ${
               mode === m
                 ? 'bg-accent text-white'
                 : 'text-text-2 hover:text-text-1'
             }`}
             onClick={() => setMode(m)}
           >
-            {m}
+            {m === 'market_maker' ? 'Market maker' : m.charAt(0).toUpperCase() + m.slice(1)}
           </button>
         ))}
       </div>
@@ -490,7 +491,182 @@ export function SimulatorPro() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <TopBar />
-      {mode === 'live' ? <LiveMode /> : <OptimizationMode />}
+      {mode === 'live' ? (
+        <LiveMode />
+      ) : mode === 'market_maker' ? (
+        <MarketMakerMode />
+      ) : (
+        <OptimizationMode />
+      )}
+    </div>
+  )
+}
+
+// ---------- Market-Maker mode ----------
+
+function MarketMakerMode() {
+  const network = useSimulator((s) => s.network)
+  const horizon = useSimulator((s) => s.horizonHours)
+  const timestep = useSimulator((s) => s.timestepMinutes)
+  const loadMul = useSimulator((s) => s.loadMultiplier)
+  const forecast = useSimulator((s) => s.forecastSource)
+  const placement = useSimulator((s) => s.placementMode)
+  const setPlacement = useSimulator((s) => s.setPlacementMode)
+  const batteries = useSimulator((s) => s.batteries)
+  const dataCenters = useSimulator((s) => s.dataCenters)
+  const renewables = useSimulator((s) => s.renewables)
+  const addBattery = useSimulator((s) => s.addBattery)
+  const addDC = useSimulator((s) => s.addDataCenter)
+  const addRen = useSimulator((s) => s.addRenewable)
+  const setSelectedBus = useSimulator((s) => s.setSelectedBus)
+  const result = useSimulator((s) => s.marketResult)
+  const isLoading = useSimulator((s) => s.marketLoading)
+  const error = useSimulator((s) => s.marketError)
+  const setResult = useSimulator((s) => s.setMarketResult)
+  const setLoading = useSimulator((s) => s.setMarketLoading)
+  const setError = useSimulator((s) => s.setMarketError)
+
+  const { data: net } = useQuery({
+    queryKey: ['network', network],
+    queryFn: () => api.getNetwork(network),
+  })
+
+  const handleBusClick = (busId: number) => {
+    if (!placement) {
+      setSelectedBus(busId)
+      return
+    }
+    if (placement === 'battery') addBattery(makeBattery(busId, batteries.length))
+    else if (placement === 'data_center') addDC(makeDC(busId, dataCenters.length))
+    else if (placement === 'renewable') addRen(makeRenewable(busId, renewables.length))
+    setPlacement(null)
+  }
+
+  const runAnalysis = async () => {
+    if (dataCenters.length === 0) {
+      toast('warning', {
+        title: 'Place a data center first',
+        description: 'Market-maker analysis requires at least one data center as the leader.',
+      })
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await api.stackelberg({
+        network,
+        horizon_hours: horizon,
+        timestep_minutes: timestep,
+        load_multiplier: loadMul,
+        batteries,
+        data_centers: dataCenters,
+        renewables,
+        forecast: { source: forecast },
+        leader_data_center_id: null,
+      })
+      setResult(r)
+      toast('success', {
+        title: 'Stackelberg solved',
+        description: `${r.iterations.length} iterations · gain ${formatUSD(r.stackelberg_gain_usd)}`,
+      })
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Analysis failed'
+      setError(msg)
+      toast('danger', { title: 'Analysis failed', description: msg })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!net) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Skeleton className="h-64 w-3/4 max-w-2xl" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 grid grid-cols-[300px_1fr_400px] grid-rows-[auto_1fr] min-h-0">
+      <div className="col-span-3 px-4 py-2 border-b border-border bg-surface/40 text-[11px] text-text-2 mono flex items-center gap-2">
+        <Sparkles size={12} className="text-accent" />
+        Stackelberg analysis: a flexible AI campus placed at a thinly-traded node
+        moves its own LMP. We compare price-taker (campus ignores its own impact)
+        against Stackelberg-aware (campus accounts for it). The gain is the value
+        of that awareness.
+      </div>
+
+      {/* Left: asset placement */}
+      <aside className="row-start-2 border-r border-border bg-surface/40 p-3 flex flex-col gap-3 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+          <AssetPanel />
+        </div>
+        <div className="border-t border-border pt-3">
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={runAnalysis}
+            loading={isLoading}
+            disabled={isLoading}
+          >
+            <Wand2 size={16} /> Run Stackelberg analysis
+          </Button>
+          {error && <p className="text-[11px] text-danger mono mt-2 break-words">{error}</p>}
+          {dataCenters.length === 0 && (
+            <p className="text-[11px] text-text-3 mono mt-2">
+              Place a data center on the network to enable analysis.
+            </p>
+          )}
+        </div>
+      </aside>
+
+      {/* Center: network */}
+      <section className="row-start-2 relative bg-bg flex items-stretch min-h-0">
+        <NetworkDiagram
+          network={net}
+          batteries={batteries}
+          dataCenters={dataCenters}
+          renewables={renewables}
+          placementMode={placement}
+          onBusClick={handleBusClick}
+          baseline
+          width="100%"
+          height="100%"
+        />
+        {result && (
+          <div className="absolute top-2 left-2 bg-surface/90 backdrop-blur-sm border border-border rounded p-2 text-[11px] mono text-text-2 max-w-xs">
+            <div className="text-text-1 font-semibold text-xs mb-1">
+              Leader on bus {result.leader_bus}
+            </div>
+            <div>
+              LMP shift{' '}
+              <span className="text-warning">
+                ±{formatLMP(result.max_lmp_impact_usd_per_mwh)}
+              </span>
+            </div>
+            <div>
+              Gain{' '}
+              <span className={result.stackelberg_gain_usd >= 0 ? 'text-success' : 'text-danger'}>
+                {formatUSD(result.stackelberg_gain_usd)}
+              </span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Right: results */}
+      <aside className="row-start-2 border-l border-border bg-surface/40 p-3 min-h-0 overflow-hidden">
+        {result ? (
+          <MarketMakerPanel result={result} />
+        ) : (
+          <Card className="text-xs text-text-2 leading-relaxed">
+            <Sparkles className="text-accent mb-2" size={16} />
+            Place a data center on the network, then click{' '}
+            <span className="mono text-text-1">Run Stackelberg analysis</span> to
+            compare price-taker vs market-maker dispatch.
+          </Card>
+        )}
+      </aside>
     </div>
   )
 }

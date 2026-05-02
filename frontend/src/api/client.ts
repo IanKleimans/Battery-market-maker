@@ -11,6 +11,8 @@ import type {
   SDPResponse,
   SinglePeriodRequest,
   SinglePeriodSolution,
+  StackelbergRequest,
+  StackelbergSolution,
 } from '@/types/api'
 
 const BASE_URL =
@@ -107,6 +109,12 @@ export const api = {
       forecast: number[]
       timestamps: string[]
     }>('/forecasting/quality', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    }),
+
+  stackelberg: (req: StackelbergRequest) =>
+    request<StackelbergSolution>('/optimization/stackelberg', {
       method: 'POST',
       body: JSON.stringify(req),
     }),

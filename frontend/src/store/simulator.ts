@@ -40,7 +40,7 @@ export const EMPTY_LIVE_OVERRIDES: LiveOverrides = {
   lineOutages: [],
 }
 
-export type SimulatorMode = 'live' | 'optimization'
+export type SimulatorMode = 'live' | 'optimization' | 'market_maker'
 export type AssetKind = 'battery' | 'data_center' | 'renewable' | null
 
 export interface SimulatorState {
@@ -75,6 +75,11 @@ export interface SimulatorState {
   isSolving: boolean
   solveError: string | null
   solveElapsed: number | null
+
+  // Stackelberg / market-maker
+  marketResult: import('@/types/api').StackelbergSolution | null
+  marketLoading: boolean
+  marketError: string | null
 
   // Scrubber
   scrubberStep: number
@@ -113,6 +118,9 @@ export interface SimulatorState {
   setSolving: (b: boolean) => void
   setSolveError: (s: string | null) => void
   setSolveElapsed: (s: number | null) => void
+  setMarketResult: (r: import('@/types/api').StackelbergSolution | null) => void
+  setMarketLoading: (b: boolean) => void
+  setMarketError: (s: string | null) => void
   setScrubberStep: (s: number) => void
   setPlaying: (b: boolean) => void
   setScenario: (id: string | null) => void
@@ -152,6 +160,9 @@ export const useSimulator = create<SimulatorState>()(
     isSolving: false,
     solveError: null,
     solveElapsed: null,
+    marketResult: null,
+    marketLoading: false,
+    marketError: null,
     scrubberStep: 0,
     isPlaying: false,
 
@@ -244,6 +255,9 @@ export const useSimulator = create<SimulatorState>()(
     setSolving: (b) => set({ isSolving: b }),
     setSolveError: (s) => set({ solveError: s }),
     setSolveElapsed: (s) => set({ solveElapsed: s }),
+    setMarketResult: (r) => set({ marketResult: r }),
+    setMarketLoading: (b) => set({ marketLoading: b }),
+    setMarketError: (s) => set({ marketError: s }),
     setScrubberStep: (s) => set({ scrubberStep: s }),
     setPlaying: (b) => set({ isPlaying: b }),
     setScenario: (id) => set({ scenarioId: id }),

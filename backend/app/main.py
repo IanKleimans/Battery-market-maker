@@ -18,7 +18,14 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.core.settings import settings
-from app.routers import forecasting, network, optimization, scenarios, sdp
+from app.routers import (
+    forecasting,
+    network,
+    optimization,
+    scenarios,
+    sdp,
+    stackelberg,
+)
 from app.ws import solve_progress
 
 logging.basicConfig(
@@ -75,6 +82,7 @@ app.add_middleware(
 
 app.include_router(network.router, prefix=settings.api_prefix)
 app.include_router(optimization.router, prefix=settings.api_prefix)
+app.include_router(stackelberg.router, prefix=settings.api_prefix)
 app.include_router(sdp.router, prefix=settings.api_prefix)
 app.include_router(forecasting.router, prefix=settings.api_prefix)
 app.include_router(scenarios.router, prefix=settings.api_prefix)
