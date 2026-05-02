@@ -87,6 +87,16 @@
     background-size: 24px 24px;
   }
 
+  /* Screenshot / portfolio capture mode (Cmd/Ctrl+Shift+S). Hides header,
+     footer, floating toasts, and the recomputing indicator. */
+  html.screenshot-mode [data-screenshot-hide],
+  html.screenshot-mode .recomputing-indicator {
+    display: none !important;
+  }
+  html.screenshot-mode body {
+    overflow: hidden;
+  }
+
   *:focus-visible {
     @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg;
   }
