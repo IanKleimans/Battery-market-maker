@@ -23,6 +23,7 @@ import { FUEL_COLORS, lmpColor, utilizationColor } from '@/lib/colors'
 import { formatLMP, formatMW, formatMWh, formatPct } from '@/lib/format'
 import { Tooltip } from '@/components/ui'
 import { useThemeColors, type ThemeColors } from '@/lib/theme'
+import { BusSparkline } from './BusSparkline'
 
 export interface FrameState {
   /** MW dispatch by generator id at this frame */
@@ -150,7 +151,7 @@ export function NetworkDiagram({
       role="img"
       aria-label={`${network.display_name} bus diagram`}
     >
-      {/* Faint grid background */}
+      {/* Faint grid background + reusable defs */}
       <defs>
         <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
           <circle cx="20" cy="20" r="1" fill={colors.border} />
@@ -162,6 +163,36 @@ export function NetworkDiagram({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <filter id="bus-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="blur" />
+          <feOffset in="blur" dx="0" dy="1" result="offsetBlur" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.45" />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id="gen-aura" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="3" result="auraBlur" />
+          <feMerge>
+            <feMergeNode in="auraBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {/* Arrow marker traveling along flowing lines */}
+        <marker
+          id="flow-arrow-fwd"
+          viewBox="0 0 8 8"
+          refX="4"
+          refY="4"
+          markerWidth="5"
+          markerHeight="5"
+          orient="auto"
+        >
+          <path d="M0,0 L8,4 L0,8 Z" fill="currentColor" opacity="0.7" />
+        </marker>
       </defs>
       <rect width={VIEWBOX_W} height={VIEWBOX_H} fill="url(#grid)" />
 
@@ -320,8 +351,24 @@ function NetworkLine({
   const thickness = baseline
     ? 2
     : Math.max(1.5, Math.min(7, 1.5 + Math.abs(flow) / 60))
-  const animatedDash = !baseline && Math.abs(flow) > 1 ? '8,4' : undefined
+  const flowing = !baseline && Math.abs(flow) > 1
   const dir = flow >= 0 ? 1 : -1
+  const binding = !baseline && utilization >= 0.99
+  // Faster dash speed when flow is heavier; clamp to a comfortable range.
+  const dashDur = flowing
+    ? `${Math.max(0.3, Math.min(2.0, 60 / Math.max(Math.abs(flow), 5)))}s`
+    : undefined
+  const dashPattern = flowing ? '8,4' : undefined
+
+  // Geometry: midpoint for the BINDING tag; perpendicular offset so the
+  // tag sits above the line rather than on top of it.
+  const mx = (x1 + x2) / 2
+  const my = (y1 + y2) / 2
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = Math.max(1, Math.hypot(dx, dy))
+  const nx = -dy / len
+  const ny = dx / len
 
   return (
     <Tooltip
@@ -340,6 +387,9 @@ function NetworkLine({
               <div>
                 Utilization{' '}
                 <span style={{ color }}>{formatPct(Math.min(1.5, utilization))}</span>
+                {binding && (
+                  <span className="ml-1 text-warning">· binding</span>
+                )}
               </div>
             </>
           )}
@@ -350,9 +400,11 @@ function NetworkLine({
         onMouseEnter={() => onHover(line.id)}
         onMouseLeave={() => onHover(null)}
         className="cursor-help"
+        style={{ color }}
       >
-        {/* hit area */}
+        {/* Hit area */}
         <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={14} />
+        {/* Static base line (always rendered, even when flowing) */}
         <line
           x1={x1}
           y1={y1}
@@ -361,19 +413,79 @@ function NetworkLine({
           stroke={color}
           strokeWidth={thickness}
           strokeLinecap="round"
-          strokeDasharray={animatedDash}
-          opacity={hovered ? 1 : 0.85}
-        >
-          {animatedDash && (
+          opacity={hovered ? 1 : binding ? 0.95 : 0.7}
+          style={{ transition: 'stroke 200ms ease' }}
+        />
+        {/* Animated dash overlay communicates direction + speed */}
+        {flowing && (
+          <line
+            x1={dir > 0 ? x1 : x2}
+            y1={dir > 0 ? y1 : y2}
+            x2={dir > 0 ? x2 : x1}
+            y2={dir > 0 ? y2 : y1}
+            stroke={color}
+            strokeWidth={thickness}
+            strokeLinecap="round"
+            strokeDasharray={dashPattern}
+            opacity={0.85}
+            markerEnd="url(#flow-arrow-fwd)"
+          >
             <animate
               attributeName="stroke-dashoffset"
-              from={dir > 0 ? '12' : '0'}
-              to={dir > 0 ? '0' : '12'}
-              dur="0.8s"
+              from="12"
+              to="0"
+              dur={dashDur}
               repeatCount="indefinite"
             />
-          )}
-        </line>
+          </line>
+        )}
+        {/* Binding pulse: a thin halo around the line that breathes when
+            utilization is at or above the thermal limit. */}
+        {binding && (
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="#ef4444"
+            strokeWidth={thickness + 4}
+            strokeLinecap="round"
+            opacity={0.0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;0.35;0"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+          </line>
+        )}
+        {/* "BINDING" tag at the midpoint, offset perpendicular to the line */}
+        {binding && (
+          <g transform={`translate(${mx + nx * 12}, ${my + ny * 12})`}>
+            <rect
+              x={-22}
+              y={-7}
+              width={44}
+              height={13}
+              rx={2}
+              fill="#ef4444"
+              opacity={0.85}
+            />
+            <text
+              x={0}
+              y={3}
+              textAnchor="middle"
+              fontSize={8}
+              fontFamily="IBM Plex Mono, monospace"
+              fontWeight={600}
+              fill="white"
+              pointerEvents="none"
+            >
+              BINDING
+            </text>
+          </g>
+        )}
       </g>
     </Tooltip>
   )
@@ -391,6 +503,9 @@ function NetworkGenerator({ gen, x, y, output, baseline }: NetworkGeneratorProps
   const color = FUEL_COLORS[gen.fuel]
   const utilization = baseline ? 0.6 : Math.max(0.05, Math.min(1, output / gen.capacity_mw))
   const r = 6 + utilization * 7
+  // Aura grows with dispatch; idle gens render no aura at all.
+  const auraR = baseline ? 0 : Math.max(0, utilization - 0.05) * 14
+  const offline = !baseline && output < 0.01
   return (
     <Tooltip
       content={
@@ -404,11 +519,15 @@ function NetworkGenerator({ gen, x, y, output, baseline }: NetworkGeneratorProps
           </div>
           {!baseline && (
             <div>
-              Output <span className="text-text-1">{formatMW(output)}</span> ({formatPct(utilization)})
+              Output <span className="text-text-1">{formatMW(output)}</span> (
+              {formatPct(utilization)})
             </div>
           )}
           <div>
             Cost <span className="text-text-1">${gen.cost_per_mwh}/MWh</span>
+          </div>
+          <div>
+            Ramp <span className="text-text-1">{formatMW(gen.ramp_rate_mw_per_min)}</span>/min
           </div>
         </div>
       }
@@ -418,8 +537,36 @@ function NetworkGenerator({ gen, x, y, output, baseline }: NetworkGeneratorProps
         transition={{ type: 'spring', stiffness: 200, damping: 25 }}
         className="cursor-help"
       >
-        <circle cx={x} cy={y} r={r} fill={color} opacity={0.85} />
-        <circle cx={x} cy={y} r={r + 2} fill="none" stroke={color} opacity={0.3} />
+        {auraR > 0 && (
+          <circle
+            cx={x}
+            cy={y}
+            r={r + auraR}
+            fill={color}
+            opacity={0.18}
+            filter="url(#gen-aura)"
+            style={{ transition: 'r 200ms ease' }}
+          />
+        )}
+        <circle
+          cx={x}
+          cy={y}
+          r={r}
+          fill={offline ? 'transparent' : color}
+          stroke={offline ? color : 'none'}
+          strokeWidth={offline ? 1.5 : 0}
+          strokeDasharray={offline ? '2,2' : undefined}
+          opacity={offline ? 0.5 : 0.9}
+          style={{ transition: 'r 200ms ease, opacity 200ms ease' }}
+        />
+        <circle
+          cx={x}
+          cy={y}
+          r={r + 2}
+          fill="none"
+          stroke={color}
+          opacity={offline ? 0 : 0.3}
+        />
       </motion.g>
     </Tooltip>
   )
@@ -463,9 +610,11 @@ function NetworkBus({
   return (
     <Tooltip
       content={
-        <div className="text-[11px] mono space-y-0.5">
+        <div className="text-[11px] mono space-y-1 min-w-[140px]">
           <div className="font-semibold text-text-1">{bus.name}</div>
-          <div>{bus.base_kv} kV {bus.is_slack && '· slack'}</div>
+          <div>
+            {bus.base_kv} kV {bus.is_slack && '· slack'}
+          </div>
           {load !== undefined && (
             <div>
               Load <span className="text-text-1">{formatMW(load)}</span>
@@ -474,6 +623,14 @@ function NetworkBus({
           {!baseline && lmp !== undefined && (
             <div>
               LMP <span className="text-text-1">{formatLMP(lmp)}</span>
+            </div>
+          )}
+          {!baseline && (
+            <div className="pt-1 mt-1 border-t border-border">
+              <div className="text-[10px] text-text-3 uppercase tracking-wider mb-1">
+                LMP last 60 s
+              </div>
+              <BusSparkline busId={bus.id} channel="live" width={130} height={30} />
             </div>
           )}
         </div>
