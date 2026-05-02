@@ -179,6 +179,17 @@ class MultiPeriodSolution(BaseModel):
     solver_stats: SolverStats = Field(default_factory=SolverStats)
 
 
+class GenOverride(BaseModel):
+    """Per-generator override applied before the Live-mode solve.
+
+    All fields default to None (use the network's nameplate value).
+    `online=False` forces the generator offline by zeroing its capacity. """
+
+    capacity_mw: float | None = Field(default=None, ge=0)
+    cost_per_mwh: float | None = Field(default=None, ge=0)
+    online: bool = True
+
+
 class SinglePeriodRequest(BaseModel):
     """Body for the Live-mode single-period DC-OPF."""
 
@@ -186,6 +197,15 @@ class SinglePeriodRequest(BaseModel):
     load_multiplier: float = Field(1.0, gt=0, le=3.0)
     wind_availability: float = Field(1.0, ge=0, le=1.0)
     line_capacity_overrides: dict[int, float] = Field(default_factory=dict)
+    line_outages: list[int] = Field(default_factory=list, description="Line ids forced out of service")
+    load_overrides: dict[int, float] = Field(
+        default_factory=dict,
+        description="bus_id -> override total load MW (replaces network's per-bus load)",
+    )
+    gen_overrides: dict[int, GenOverride] = Field(
+        default_factory=dict,
+        description="gen_id -> per-gen override (capacity / cost / online)",
+    )
 
 
 class SinglePeriodSolution(BaseModel):

@@ -22,6 +22,7 @@ export function useLiveDispatch(active: boolean) {
   const network = useSimulator((s) => s.network)
   const loadMul = useSimulator((s) => s.loadMultiplier)
   const wind = useSimulator((s) => s.windAvailability)
+  const overrides = useSimulator((s) => s.liveOverrides)
   const setLive = useSimulator((s) => s.setLiveResult)
   const setLiveLoading = useSimulator((s) => s.setLiveLoading)
   const setLiveError = useSimulator((s) => s.setLiveError)
@@ -44,7 +45,10 @@ export function useLiveDispatch(active: boolean) {
             network,
             load_multiplier: loadMul,
             wind_availability: wind,
-            line_capacity_overrides: {},
+            line_capacity_overrides: overrides.lineCaps,
+            line_outages: overrides.lineOutages,
+            load_overrides: overrides.loads,
+            gen_overrides: overrides.gens,
           },
           { signal: controller.signal },
         )
@@ -74,5 +78,5 @@ export function useLiveDispatch(active: boolean) {
       // Don't abort on unmount-while-pending — let the response settle so the
       // store stays consistent. The reqId guard drops it if stale.
     }
-  }, [active, network, loadMul, wind, setLive, setLiveLoading, setLiveError])
+  }, [active, network, loadMul, wind, overrides, setLive, setLiveLoading, setLiveError])
 }

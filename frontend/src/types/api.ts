@@ -190,11 +190,20 @@ export interface MultiPeriodSolution {
   solver_stats: SolverStats
 }
 
+export interface GenOverride {
+  capacity_mw?: number | null
+  cost_per_mwh?: number | null
+  online?: boolean
+}
+
 export interface SinglePeriodRequest {
   network: NetworkName
   load_multiplier: number
   wind_availability: number
   line_capacity_overrides: Record<number, number>
+  line_outages?: number[]
+  load_overrides?: Record<number, number>
+  gen_overrides?: Record<number, GenOverride>
 }
 
 export interface SinglePeriodSolution {

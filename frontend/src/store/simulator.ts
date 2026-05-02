@@ -15,11 +15,30 @@ import type {
   BatteryAsset,
   DataCenterAsset,
   ForecastSource,
+  GenOverride,
   MultiPeriodSolution,
   NetworkName,
   RenewableAsset,
   SinglePeriodSolution,
 } from '@/types/api'
+
+export interface LiveOverrides {
+  /** bus_id -> override total load MW */
+  loads: Record<number, number>
+  /** gen_id -> per-gen override */
+  gens: Record<number, GenOverride>
+  /** line_id -> capacity MW (replaces nameplate) */
+  lineCaps: Record<number, number>
+  /** line_ids forced offline */
+  lineOutages: number[]
+}
+
+export const EMPTY_LIVE_OVERRIDES: LiveOverrides = {
+  loads: {},
+  gens: {},
+  lineCaps: {},
+  lineOutages: [],
+}
 
 export type SimulatorMode = 'live' | 'optimization'
 export type AssetKind = 'battery' | 'data_center' | 'renewable' | null
@@ -32,6 +51,7 @@ export interface SimulatorState {
   // Live mode controls
   loadMultiplier: number
   windAvailability: number
+  liveOverrides: LiveOverrides
 
   // Optimization mode controls
   horizonHours: number
@@ -65,6 +85,12 @@ export interface SimulatorState {
   setMode: (m: SimulatorMode) => void
   setLoadMultiplier: (v: number) => void
   setWindAvailability: (v: number) => void
+  setLoadOverride: (bus: number, mw: number | null) => void
+  setGenOverride: (genId: number, patch: Partial<GenOverride> | null) => void
+  setLineCapOverride: (lineId: number, mw: number | null) => void
+  setLineOutage: (lineId: number, outage: boolean) => void
+  resetLiveOverrides: () => void
+  applyLiveOverrides: (o: LiveOverrides) => void
   setHorizonHours: (v: number) => void
   setTimestepMinutes: (v: number) => void
   setForecastSource: (s: ForecastSource) => void
@@ -110,6 +136,7 @@ export const useSimulator = create<SimulatorState>()(
     scenarioId: null,
     loadMultiplier: 1.0,
     windAvailability: 1.0,
+    liveOverrides: EMPTY_LIVE_OVERRIDES,
     horizonHours: 24,
     timestepMinutes: 60,
     forecastSource: 'perfect',
@@ -139,10 +166,46 @@ export const useSimulator = create<SimulatorState>()(
         liveResult: null,
         scrubberStep: 0,
         scenarioId: null,
+        // Live overrides reference bus / gen / line ids, which don't carry
+        // across networks, so reset them too.
+        liveOverrides: EMPTY_LIVE_OVERRIDES,
       }),
     setMode: (m) => set({ mode: m }),
     setLoadMultiplier: (v) => set({ loadMultiplier: v }),
     setWindAvailability: (v) => set({ windAvailability: v }),
+
+    setLoadOverride: (bus, mw) =>
+      set((s) => {
+        const next = { ...s.liveOverrides.loads }
+        if (mw === null) delete next[bus]
+        else next[bus] = mw
+        return { liveOverrides: { ...s.liveOverrides, loads: next } }
+      }),
+    setGenOverride: (genId, patch) =>
+      set((s) => {
+        const next = { ...s.liveOverrides.gens }
+        if (patch === null) delete next[genId]
+        else next[genId] = { ...next[genId], ...patch }
+        return { liveOverrides: { ...s.liveOverrides, gens: next } }
+      }),
+    setLineCapOverride: (lineId, mw) =>
+      set((s) => {
+        const next = { ...s.liveOverrides.lineCaps }
+        if (mw === null) delete next[lineId]
+        else next[lineId] = mw
+        return { liveOverrides: { ...s.liveOverrides, lineCaps: next } }
+      }),
+    setLineOutage: (lineId, outage) =>
+      set((s) => {
+        const set_ = new Set(s.liveOverrides.lineOutages)
+        if (outage) set_.add(lineId)
+        else set_.delete(lineId)
+        return {
+          liveOverrides: { ...s.liveOverrides, lineOutages: [...set_].sort((a, b) => a - b) },
+        }
+      }),
+    resetLiveOverrides: () => set({ liveOverrides: EMPTY_LIVE_OVERRIDES, loadMultiplier: 1.0, windAvailability: 1.0 }),
+    applyLiveOverrides: (o) => set({ liveOverrides: o }),
     setHorizonHours: (v) => set({ horizonHours: v, scrubberStep: 0 }),
     setTimestepMinutes: (v) => set({ timestepMinutes: v, scrubberStep: 0 }),
     setForecastSource: (s) => set({ forecastSource: s }),

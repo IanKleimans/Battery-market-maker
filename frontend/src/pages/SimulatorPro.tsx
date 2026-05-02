@@ -1,6 +1,6 @@
 /** The Pro simulator — IEEE 14-bus / 30-bus / 5-bus with Live and Optimization modes. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
@@ -19,7 +19,6 @@ import {
   Card,
   Select,
   Skeleton,
-  Slider,
   toast,
 } from '@/components/ui'
 import {
@@ -29,6 +28,7 @@ import {
   ResultsPanel,
 } from '@/components/network'
 import { LiveCalculations } from '@/components/network/LiveCalculations'
+import { LiveControls } from '@/components/network/LiveControls'
 import { SolverTraceDrawer } from '@/components/network/SolverTraceDrawer'
 import type {
   BatteryAsset,
@@ -125,10 +125,6 @@ function TopBar() {
 
 function LiveMode() {
   const network = useSimulator((s) => s.network)
-  const loadMul = useSimulator((s) => s.loadMultiplier)
-  const wind = useSimulator((s) => s.windAvailability)
-  const setLoadMul = useSimulator((s) => s.setLoadMultiplier)
-  const setWind = useSimulator((s) => s.setWindAvailability)
   const setSelectedBus = useSimulator((s) => s.setSelectedBus)
   const selectedBus = useSimulator((s) => s.selectedBus)
   const live = useSimulator((s) => s.liveResult)
@@ -144,11 +140,6 @@ function LiveMode() {
   const frame = useLiveFrame(live)
   const infeasible = live?.status === 'infeasible'
 
-  const hasWind = useMemo(
-    () => net?.generators.some((g) => g.fuel === 'wind') ?? false,
-    [net],
-  )
-
   if (!net) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -158,47 +149,25 @@ function LiveMode() {
   }
 
   return (
-    <div className="flex-1 grid grid-cols-[280px_1fr] min-h-0">
-      <aside className="border-r border-border bg-surface/40 p-3 space-y-3 overflow-y-auto">
+    <div className="flex-1 grid grid-cols-[320px_1fr] min-h-0">
+      <aside className="border-r border-border bg-surface/40 p-3 flex flex-col gap-3 overflow-hidden min-h-0">
         <Card className="p-3">
-          <h4 className="text-xs font-semibold text-text-1 mb-2">Live controls</h4>
-          <Slider
-            label="Load multiplier"
-            value={loadMul}
-            min={0.3}
-            max={1.6}
-            step={0.05}
-            onChange={setLoadMul}
-            format={(v) => `${(v * 100).toFixed(0)}%`}
-          />
-          {hasWind && (
-            <Slider
-              label="Wind availability"
-              value={wind}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setWind}
-              format={(v) => `${(v * 100).toFixed(0)}%`}
-            />
-          )}
           {live && !infeasible && (
-            <div className="mt-3 text-[11px] mono text-text-2 space-y-0.5">
+            <div className="text-[11px] mono text-text-2 grid grid-cols-2 gap-x-3 gap-y-1">
               <div>
-                Total cost{' '}
-                <span className="text-text-1">{formatUSD(live.total_cost)}/h</span>
+                Cost <span className="text-text-1">{formatUSD(live.total_cost)}/h</span>
               </div>
               <div>
-                Solver{' '}
-                <span className="text-text-1">{formatMs(live.solve_time_seconds)}</span>
+                Solver <span className="text-text-1">{formatMs(live.solve_time_seconds)}</span>
               </div>
             </div>
           )}
           {infeasible && (
-            <div className="mt-3 flex items-start gap-1.5 text-[11px] text-warning mono">
+            <div className="flex items-start gap-1.5 text-[11px] text-warning mono">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" />
               <span>
-                Infeasible. Lower the load multiplier or raise wind availability.
+                Infeasible. Lower the load multiplier, restore an outaged line, or
+                bring a generator back online.
               </span>
             </div>
           )}
@@ -209,18 +178,20 @@ function LiveMode() {
           )}
         </Card>
 
+        <div className="flex-1 min-h-0">
+          <LiveControls network={net} />
+        </div>
+
         {selectedBus !== null && (
           <Card className="p-3 animate-fade-in">
             <h4 className="text-xs font-semibold text-text-1 mb-1">Bus {selectedBus}</h4>
             {frame && (
               <div className="text-[11px] mono text-text-2 space-y-0.5">
                 <div>
-                  LMP{' '}
-                  <span className="text-text-1">{formatLMP(frame.busLMP[selectedBus])}</span>
+                  LMP <span className="text-text-1">{formatLMP(frame.busLMP[selectedBus])}</span>
                 </div>
                 <div>
-                  Load{' '}
-                  <span className="text-text-1">{formatMW(frame.busLoad[selectedBus])}</span>
+                  Load <span className="text-text-1">{formatMW(frame.busLoad[selectedBus])}</span>
                 </div>
               </div>
             )}

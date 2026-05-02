@@ -79,4 +79,7 @@ def singleperiod(req: SinglePeriodRequest) -> SinglePeriodSolution:
         load_multiplier=req.load_multiplier,
         wind_availability=req.wind_availability,
         line_capacity_overrides=req.line_capacity_overrides,
+        line_outages=req.line_outages,
+        load_overrides=req.load_overrides,
+        gen_overrides=req.gen_overrides,
     )

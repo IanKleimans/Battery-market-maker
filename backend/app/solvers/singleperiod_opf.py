@@ -14,7 +14,7 @@ import cvxpy as cp
 import numpy as np
 
 from app.schemas.network import NetworkData
-from app.schemas.optimization import SinglePeriodSolution, SolverStats
+from app.schemas.optimization import GenOverride, SinglePeriodSolution, SolverStats
 
 
 def solve_single_period(
@@ -22,26 +22,56 @@ def solve_single_period(
     load_multiplier: float = 1.0,
     wind_availability: float = 1.0,
     line_capacity_overrides: dict[int, float] | None = None,
+    line_outages: list[int] | None = None,
+    load_overrides: dict[int, float] | None = None,
+    gen_overrides: dict[int, GenOverride] | None = None,
 ) -> SinglePeriodSolution:
     overrides = line_capacity_overrides or {}
+    outages = set(line_outages or [])
+    load_o = load_overrides or {}
+    gen_o = gen_overrides or {}
     n_bus = len(network.buses)
     n_gen = len(network.generators)
     n_line = len(network.lines)
     bus_index = {b.id: i for i, b in enumerate(network.buses)}
     slack_idx = next(i for i, b in enumerate(network.buses) if b.is_slack)
 
-    # Effective gen capacity: derate wind generators by wind_availability.
-    g_max = np.array(
+    # Per-generator nameplate capacity, optionally overridden / forced offline.
+    # Wind also derates by the global wind_availability slider.
+    def _gcap(g: object) -> float:
+        ov = gen_o.get(g.id)  # type: ignore[attr-defined]
+        if ov is not None and not ov.online:
+            return 0.0
+        cap = (
+            ov.capacity_mw
+            if (ov is not None and ov.capacity_mw is not None)
+            else g.capacity_mw  # type: ignore[attr-defined]
+        )
+        if g.fuel == "wind":  # type: ignore[attr-defined]
+            cap *= wind_availability
+        return float(cap)
+
+    def _gcost(g: object) -> float:
+        ov = gen_o.get(g.id)  # type: ignore[attr-defined]
+        if ov is not None and ov.cost_per_mwh is not None:
+            return float(ov.cost_per_mwh)
+        return float(g.cost_per_mwh)  # type: ignore[attr-defined]
+
+    g_max = np.array([_gcap(g) for g in network.generators])
+    g_min = np.array(
         [
-            (g.capacity_mw * wind_availability if g.fuel == "wind" else g.capacity_mw)
+            min(g.min_output_mw, _gcap(g))  # forced-offline gens collapse min to 0
             for g in network.generators
         ]
     )
-    g_min = np.array([g.min_output_mw for g in network.generators])
-    g_cost = np.array([g.cost_per_mwh for g in network.generators])
+    g_cost = np.array([_gcost(g) for g in network.generators])
 
+    # Line capacity: outage forces 0; explicit override wins; else nameplate.
     cap_line = np.array(
-        [overrides.get(ln.id, ln.capacity_mva) for ln in network.lines]
+        [
+            0.0 if ln.id in outages else float(overrides.get(ln.id, ln.capacity_mva))
+            for ln in network.lines
+        ]
     )
     x_line = np.array([ln.reactance for ln in network.lines])
     line_from = np.array([bus_index[ln.from_bus] for ln in network.lines])
@@ -60,10 +90,18 @@ def solve_single_period(
         theta[slack_idx] == 0,
     ]
 
-    # Loads — peak * 0.7 default (mid-day equivalent), modified by multiplier
+    # Loads: per-bus override (if provided) replaces the default profile;
+    # otherwise the nameplate peak * 0.7 (mid-day) * load_multiplier applies.
     load_per_bus = np.zeros(n_bus)
+    seen_buses: set[int] = set()
     for ld in network.loads:
-        load_per_bus[bus_index[ld.bus]] += ld.peak_mw * 0.7 * load_multiplier
+        bi = bus_index[ld.bus]
+        if ld.bus in load_o:
+            if ld.bus not in seen_buses:
+                load_per_bus[bi] = float(load_o[ld.bus])
+                seen_buses.add(ld.bus)
+        else:
+            load_per_bus[bi] += ld.peak_mw * 0.7 * load_multiplier
 
     # Move all variables to LHS so the constraint canonicalises identically at
     # every bus: ``net_injection(x) == load`` with the constant load on the RHS.

@@ -168,3 +168,66 @@ def test_multiperiod_invalid_timestep_returns_422(client) -> None:
         },
     )
     assert r.status_code == 422
+
+
+def test_singleperiod_load_override(client) -> None:
+    """Per-bus load override replaces the default profile."""
+    base = client.post(
+        "/api/v1/optimization/singleperiod",
+        json={"network": "bus5", "load_multiplier": 1.0, "wind_availability": 1.0},
+    ).json()
+    overridden = client.post(
+        "/api/v1/optimization/singleperiod",
+        json={
+            "network": "bus5",
+            "load_multiplier": 1.0,
+            "wind_availability": 1.0,
+            "load_overrides": {"3": 5.0, "4": 5.0},
+        },
+    ).json()
+    assert overridden["status"] == "optimal"
+    # Less load -> lower cost
+    assert overridden["total_cost"] < base["total_cost"]
+    # Bus 3's load was overridden to 5 MW
+    assert overridden["bus_load"]["3"] == pytest.approx(5.0, abs=0.01)
+
+
+def test_singleperiod_gen_override_offline(client) -> None:
+    """Forcing a generator offline must drop its output to zero."""
+    body = client.post(
+        "/api/v1/optimization/singleperiod",
+        json={
+            "network": "bus5",
+            "load_multiplier": 1.0,
+            "wind_availability": 1.0,
+            "gen_overrides": {"1": {"online": False}},
+        },
+    ).json()
+    assert body["status"] in ("optimal", "infeasible")
+    if body["status"] == "optimal":
+        assert body["generator_output"]["1"] == pytest.approx(0.0, abs=0.01)
+
+
+def test_singleperiod_line_outage(client) -> None:
+    """Forcing a line offline yields zero flow on that line."""
+    body = client.post(
+        "/api/v1/optimization/singleperiod",
+        json={
+            "network": "bus5",
+            "load_multiplier": 1.0,
+            "wind_availability": 1.0,
+            "line_outages": [1],
+        },
+    ).json()
+    if body["status"] == "optimal":
+        assert body["line_flow"]["1"] == pytest.approx(0.0, abs=0.01)
+
+
+def test_singleperiod_solver_stats_populated(client) -> None:
+    body = client.post(
+        "/api/v1/optimization/singleperiod",
+        json={"network": "bus5", "load_multiplier": 1.0, "wind_availability": 1.0},
+    ).json()
+    assert body["solver_stats"]["solver"] in ("HIGHS", "ECOS")
+    assert body["solver_stats"]["n_variables"] > 0
+    assert body["solver_stats"]["n_constraints"] > 0
