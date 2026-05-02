@@ -22,6 +22,7 @@ const About = lazy(() => import('@/pages/About').then((m) => ({ default: m.About
 const Calculator = lazy(() =>
   import('@/pages/Calculator').then((m) => ({ default: m.Calculator })),
 )
+const Press = lazy(() => import('@/pages/Press').then((m) => ({ default: m.Press })))
 
 function PageFallback() {
   return (
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       { path: '/dashboard', element: wrap(<Dashboard />), errorElement: <RouteErrorBoundary /> },
       { path: '/scenarios', element: wrap(<Scenarios />), errorElement: <RouteErrorBoundary /> },
       { path: '/calculator', element: wrap(<Calculator />), errorElement: <RouteErrorBoundary /> },
+      { path: '/press', element: wrap(<Press />), errorElement: <RouteErrorBoundary /> },
       { path: '/about', element: wrap(<About />), errorElement: <RouteErrorBoundary /> },
       { path: '*', element: wrap(<Landing />) },
     ],
