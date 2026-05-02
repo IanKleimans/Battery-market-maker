@@ -417,13 +417,14 @@ def solve_multiperiod_dcopf(
     elapsed, status = _solve(art.problem)
 
     if status == "infeasible":
+        # See singleperiod_opf for why we don't ship `inf` over JSON.
         return MultiPeriodSolution(
             status="infeasible",
             horizon_hours=horizon_hours,
             timestep_minutes=timestep_minutes,
             n_timesteps=art.T,
             timestamps=art.timestamps,
-            total_system_cost=float("inf"),
+            total_system_cost=0.0,
             solve_time_seconds=elapsed,
             generator_dispatch=[],
             line_flows=[],

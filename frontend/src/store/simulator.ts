@@ -50,6 +50,8 @@ export interface SimulatorState {
   // Solve results
   multiResult: MultiPeriodSolution | null
   liveResult: SinglePeriodSolution | null
+  liveLoading: boolean
+  liveError: string | null
   isSolving: boolean
   solveError: string | null
   solveElapsed: number | null
@@ -80,6 +82,8 @@ export interface SimulatorState {
   clearAssets: () => void
   setMultiResult: (r: MultiPeriodSolution | null) => void
   setLiveResult: (r: SinglePeriodSolution | null) => void
+  setLiveLoading: (b: boolean) => void
+  setLiveError: (s: string | null) => void
   setSolving: (b: boolean) => void
   setSolveError: (s: string | null) => void
   setSolveElapsed: (s: number | null) => void
@@ -116,6 +120,8 @@ export const useSimulator = create<SimulatorState>()(
     selectedBus: null,
     multiResult: null,
     liveResult: null,
+    liveLoading: false,
+    liveError: null,
     isSolving: false,
     solveError: null,
     solveElapsed: null,
@@ -170,6 +176,8 @@ export const useSimulator = create<SimulatorState>()(
     clearAssets: () => set({ batteries: [], dataCenters: [], renewables: [] }),
     setMultiResult: (r) => set({ multiResult: r }),
     setLiveResult: (r) => set({ liveResult: r }),
+    setLiveLoading: (b) => set({ liveLoading: b }),
+    setLiveError: (s) => set({ liveError: s }),
     setSolving: (b) => set({ isSolving: b }),
     setSolveError: (s) => set({ solveError: s }),
     setSolveElapsed: (s) => set({ solveElapsed: s }),

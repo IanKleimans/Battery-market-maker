@@ -92,15 +92,18 @@ def solve_single_period(
     elapsed = time.perf_counter() - t0
 
     if problem.status not in {cp.OPTIMAL, cp.OPTIMAL_INACCURATE}:
+        # Never put `inf`/`nan` on the wire: JSON has no Infinity, and downstream
+        # JS treats `null` as falsy in some places and 0 in others. Surface
+        # infeasibility through `status` instead and use 0.0 as a placeholder.
         return SinglePeriodSolution(
             status="infeasible",
-            total_cost=float("inf"),
+            total_cost=0.0,
             solve_time_seconds=elapsed,
-            generator_output={},
-            line_flow={},
-            line_utilization={},
-            bus_lmp={},
-            bus_load={ld.bus: load_per_bus[bus_index[ld.bus]] for ld in network.loads},
+            generator_output={g.id: 0.0 for g in network.generators},
+            line_flow={ln.id: 0.0 for ln in network.lines},
+            line_utilization={ln.id: 0.0 for ln in network.lines},
+            bus_lmp={b.id: 0.0 for b in network.buses},
+            bus_load={b.id: float(load_per_bus[bi]) for bi, b in enumerate(network.buses)},
         )
 
     P_g_v = np.asarray(P_g.value, dtype=float)

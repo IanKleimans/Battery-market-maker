@@ -4,6 +4,7 @@ import { useCallback, useRef } from 'react'
 import { streamSolve } from '@/api/ws'
 import { useSimulator } from '@/store/simulator'
 import { toast } from '@/components/ui'
+import { formatSeconds } from '@/lib/format'
 import type { MultiPeriodRequest } from '@/types/api'
 
 export function useSolveSimulator() {
@@ -40,7 +41,7 @@ export function useSolveSimulator() {
         useSimulator.getState().setSolving(false)
         toast('success', {
           title: 'Solved',
-          description: `${e.elapsed.toFixed(2)} s · ${e.result.n_timesteps} timesteps`,
+          description: `${formatSeconds(e.elapsed)} · ${e.result.n_timesteps} timesteps`,
         })
       } else if (e.event === 'failed') {
         useSimulator.getState().setSolveError(

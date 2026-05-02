@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { Shell } from '@/components/layout/Shell'
 import { RouteErrorBoundary } from '@/components/layout/ErrorBoundary'
+import { AppErrorBoundary } from '@/components/layout/AppErrorBoundary'
 import { Skeleton } from '@/components/ui'
 
 const Landing = lazy(() => import('@/pages/Landing').then((m) => ({ default: m.Landing })))
@@ -33,15 +34,15 @@ function PageFallback() {
 }
 
 const wrap = (el: React.ReactNode) => (
-  <Suspense fallback={<PageFallback />}>{el}</Suspense>
+  <AppErrorBoundary>
+    <Suspense fallback={<PageFallback />}>{el}</Suspense>
+  </AppErrorBoundary>
 )
 
 export const router = createBrowserRouter([
   {
     element: <Shell />,
-    errorElement: (
-      <Shell />
-    ),
+    errorElement: <Shell />,
     children: [
       { path: '/', element: wrap(<Landing />), errorElement: <RouteErrorBoundary /> },
       { path: '/simulator/pro', element: wrap(<SimulatorPro />), errorElement: <RouteErrorBoundary /> },

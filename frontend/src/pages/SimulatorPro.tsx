@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
-import { Wand2, Sparkles, Loader2 } from 'lucide-react'
+import { Wand2, Sparkles, Loader2, AlertTriangle } from 'lucide-react'
 import { api } from '@/api/client'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useSimulator } from '@/store/simulator'
@@ -12,6 +12,7 @@ import { useSolveSimulator } from '@/hooks/useSolveSimulator'
 import { useFrameState } from '@/hooks/useFrameState'
 import { useLiveDispatch } from '@/hooks/useLiveDispatch'
 import { useLiveFrame } from '@/hooks/useLiveFrame'
+import { formatLMP, formatMs, formatMW, formatSeconds, formatUSD } from '@/lib/format'
 import {
   Badge,
   Button,
@@ -129,6 +130,8 @@ function LiveMode() {
   const setSelectedBus = useSimulator((s) => s.setSelectedBus)
   const selectedBus = useSimulator((s) => s.selectedBus)
   const live = useSimulator((s) => s.liveResult)
+  const liveLoading = useSimulator((s) => s.liveLoading)
+  const liveError = useSimulator((s) => s.liveError)
 
   const { data: net } = useQuery({
     queryKey: ['network', network],
@@ -137,6 +140,7 @@ function LiveMode() {
 
   useLiveDispatch(true)
   const frame = useLiveFrame(live)
+  const infeasible = live?.status === 'infeasible'
 
   const hasWind = useMemo(
     () => net?.generators.some((g) => g.fuel === 'wind') ?? false,
@@ -176,19 +180,30 @@ function LiveMode() {
               format={(v) => `${(v * 100).toFixed(0)}%`}
             />
           )}
-          {live && (
+          {live && !infeasible && (
             <div className="mt-3 text-[11px] mono text-text-2 space-y-0.5">
               <div>
                 Total cost{' '}
-                <span className="text-text-1">${live.total_cost.toFixed(0)}/h</span>
+                <span className="text-text-1">{formatUSD(live.total_cost)}/h</span>
               </div>
               <div>
                 Solver{' '}
-                <span className="text-text-1">
-                  {(live.solve_time_seconds * 1000).toFixed(0)} ms
-                </span>
+                <span className="text-text-1">{formatMs(live.solve_time_seconds)}</span>
               </div>
             </div>
+          )}
+          {infeasible && (
+            <div className="mt-3 flex items-start gap-1.5 text-[11px] text-warning mono">
+              <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+              <span>
+                Infeasible. Lower the load multiplier or raise wind availability.
+              </span>
+            </div>
+          )}
+          {liveError && (
+            <p className="mt-2 text-[11px] text-danger mono break-words">
+              {liveError}
+            </p>
           )}
         </Card>
 
@@ -199,15 +214,11 @@ function LiveMode() {
               <div className="text-[11px] mono text-text-2 space-y-0.5">
                 <div>
                   LMP{' '}
-                  <span className="text-text-1">
-                    ${(frame.busLMP[selectedBus] ?? 0).toFixed(2)}/MWh
-                  </span>
+                  <span className="text-text-1">{formatLMP(frame.busLMP[selectedBus])}</span>
                 </div>
                 <div>
                   Load{' '}
-                  <span className="text-text-1">
-                    {(frame.busLoad[selectedBus] ?? 0).toFixed(1)} MW
-                  </span>
+                  <span className="text-text-1">{formatMW(frame.busLoad[selectedBus])}</span>
                 </div>
               </div>
             )}
@@ -216,12 +227,25 @@ function LiveMode() {
       </aside>
 
       <section className="relative bg-bg flex items-stretch min-h-0">
+        <AnimatePresence>
+          {liveLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="absolute top-2 right-2 z-10 flex items-center gap-1.5 text-[10px] mono text-text-2 bg-surface/80 backdrop-blur-sm px-2 py-1 rounded border border-border"
+            >
+              <Loader2 size={10} className="animate-spin text-accent" />
+              Recomputing
+            </motion.div>
+          )}
+        </AnimatePresence>
         <NetworkDiagram
           network={net}
           frame={frame}
           selectedBus={selectedBus}
           onBusClick={(b) => setSelectedBus(b === selectedBus ? null : b)}
-          baseline={!frame}
+          baseline={!frame || infeasible}
           width="100%"
           height="100%"
         />
@@ -336,7 +360,7 @@ function OptimizationMode() {
           )}
           {solveElapsed !== null && !isSolving && !solveError && (
             <p className="text-[11px] text-text-2 mono">
-              Solved in {solveElapsed.toFixed(2)} s
+              Solved in {formatSeconds(solveElapsed)}
             </p>
           )}
         </div>
@@ -368,7 +392,7 @@ function OptimizationMode() {
                 <Loader2 className="text-accent animate-spin mx-auto mb-2" />
                 <div className="text-sm font-semibold text-text-1">Solving</div>
                 <div className="text-xs text-text-2 mt-1 mono">
-                  {solveElapsed !== null ? `${solveElapsed.toFixed(1)} s elapsed` : 'building LP…'}
+                  {solveElapsed !== null ? `${formatSeconds(solveElapsed, 1)} elapsed` : 'building LP…'}
                 </div>
               </Card>
             </motion.div>

@@ -39,7 +39,7 @@ import {
   Select,
   Skeleton,
 } from '@/components/ui'
-import { formatPct, formatUSD } from '@/lib/format'
+import { formatFixed, formatPct, formatSeconds, formatUSD } from '@/lib/format'
 import type { PolicyName } from '@/types/api'
 
 type ForecastType = 'perfect' | 'naive' | 'xgboost'
@@ -232,24 +232,21 @@ export function Dashboard() {
         />
         <MetricCard
           label="Optimality Gap"
-          value={optimalityGap === null ? '—' : `${optimalityGap.toFixed(1)}%`}
+          value={optimalityGap === null ? '—' : `${formatFixed(optimalityGap, 1)}%`}
           unit="vs PF"
           icon={<Activity size={14} />}
           loading={isLoading}
         />
         <MetricCard
           label="Forecast RMSE"
-          value={
-            fcQuery.data ? `${fcQuery.data.rmse_per_mwh.toFixed(3)}` : '—'
-          }
+          value={fcQuery.data ? formatFixed(fcQuery.data.rmse_per_mwh, 3) : '—'}
           unit="$/MWh"
           icon={<Cpu size={14} />}
           loading={isLoading}
         />
         <MetricCard
           label="Avg Solve Time"
-          value={avgSolveTime === null ? '—' : `${avgSolveTime.toFixed(2)}`}
-          unit="s"
+          value={avgSolveTime === null ? '—' : formatSeconds(avgSolveTime)}
           icon={<Clock size={14} />}
           loading={isLoading}
         />
@@ -399,8 +396,8 @@ export function Dashboard() {
                   labelStyle={{ color: '#f1f5f9' }}
                   formatter={(value, name) => {
                     const v = typeof value === 'number' ? value : 0
-                    if (name === 'rmse') return [`${v.toFixed(3)} $/MWh`, 'RMSE']
-                    if (name === 'gap_pct') return [`${v.toFixed(1)}%`, 'Gap']
+                    if (name === 'rmse') return [`${formatFixed(v, 3)} $/MWh`, 'RMSE']
+                    if (name === 'gap_pct') return [`${formatFixed(v, 1)}%`, 'Gap']
                     return [String(value ?? '—'), String(name)]
                   }}
                 />
