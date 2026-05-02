@@ -8,6 +8,7 @@ const navItems = [
   { to: '/simulator/classic', label: 'Classic' },
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/scenarios', label: 'Scenarios' },
+  { to: '/calculator', label: 'Calculator' },
   { to: '/about', label: 'About' },
 ]
 
