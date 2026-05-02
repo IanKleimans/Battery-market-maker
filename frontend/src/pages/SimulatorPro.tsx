@@ -1,10 +1,10 @@
 /** The Pro simulator — IEEE 14-bus / 30-bus / 5-bus with Live and Optimization modes. */
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
-import { Wand2, Sparkles, Loader2, AlertTriangle } from 'lucide-react'
+import { Wand2, Sparkles, Loader2, AlertTriangle, FileText } from 'lucide-react'
 import { api } from '@/api/client'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useSimulator } from '@/store/simulator'
@@ -28,6 +28,8 @@ import {
   TimeScrubber,
   ResultsPanel,
 } from '@/components/network'
+import { LiveCalculations } from '@/components/network/LiveCalculations'
+import { SolverTraceDrawer } from '@/components/network/SolverTraceDrawer'
 import type {
   BatteryAsset,
   DataCenterAsset,
@@ -224,6 +226,8 @@ function LiveMode() {
             )}
           </Card>
         )}
+
+        <LiveCalculations network={net} result={live} selectedBus={selectedBus} />
       </aside>
 
       <section className="relative bg-bg flex items-stretch min-h-0">
@@ -275,6 +279,7 @@ function OptimizationMode() {
   const solveError = useSimulator((s) => s.solveError)
   const solveElapsed = useSimulator((s) => s.solveElapsed)
   const result = useSimulator((s) => s.multiResult)
+  const [traceOpen, setTraceOpen] = useState(false)
 
   const { data: net } = useQuery({
     queryKey: ['network', network],
@@ -355,6 +360,16 @@ function OptimizationMode() {
           >
             <Wand2 size={16} /> Optimize
           </Button>
+          {result && !isSolving && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={() => setTraceOpen(true)}
+            >
+              <FileText size={14} /> Show calculations
+            </Button>
+          )}
           {solveError && (
             <p className="text-[11px] text-danger mono">{solveError}</p>
           )}
@@ -418,6 +433,15 @@ function OptimizationMode() {
       <div className="col-span-3">
         {result && <TimeScrubber result={result} />}
       </div>
+
+      {result && (
+        <SolverTraceDrawer
+          open={traceOpen}
+          onOpenChange={setTraceOpen}
+          result={result}
+          network={net}
+        />
+      )}
     </div>
   )
 }

@@ -70,6 +70,7 @@ from app.schemas.optimization import (
     RenewableAsset,
     RenewableTrajectory,
     RevenueBreakdown,
+    SolverStats,
 )
 from app.solvers.forecasts import (
     hours_grid,
@@ -340,13 +341,15 @@ def _build_problem(
     )
 
 
-def _solve(problem: cp.Problem) -> tuple[float, str]:
-    """Solve with HiGHS, falling back to ECOS. Returns (elapsed, status)."""
+def _solve(problem: cp.Problem) -> tuple[float, str, str]:
+    """Solve with HiGHS, falling back to ECOS. Returns (elapsed, status, solver_name)."""
     t0 = time.perf_counter()
+    solver_used = "HIGHS"
     try:
         problem.solve(solver=cp.HIGHS)
     except Exception:
         problem.solve(solver=cp.ECOS)
+        solver_used = "ECOS"
     elapsed = time.perf_counter() - t0
     status = problem.status
     if status == cp.OPTIMAL:
@@ -355,7 +358,7 @@ def _solve(problem: cp.Problem) -> tuple[float, str]:
         normalised = "optimal_inaccurate"
     else:
         normalised = "infeasible"
-    return elapsed, normalised
+    return elapsed, normalised, solver_used
 
 
 def _extract_lmps(
@@ -414,7 +417,13 @@ def solve_multiperiod_dcopf(
         renewables=renewables,
         forecast=forecast,
     )
-    elapsed, status = _solve(art.problem)
+    elapsed, status, solver_used = _solve(art.problem)
+
+    n_vars = int(art.problem.size_metrics.num_scalar_variables)
+    n_cons = int(art.problem.size_metrics.num_scalar_eq_constr) + int(
+        art.problem.size_metrics.num_scalar_leq_constr
+    )
+    stats = SolverStats(solver=solver_used, n_variables=n_vars, n_constraints=n_cons)
 
     if status == "infeasible":
         # See singleperiod_opf for why we don't ship `inf` over JSON.
@@ -433,6 +442,7 @@ def solve_multiperiod_dcopf(
             data_center_trajectories=[],
             renewable_trajectories=[],
             revenue=[],
+            solver_stats=stats,
         )
 
     # Extract values
@@ -568,6 +578,7 @@ def solve_multiperiod_dcopf(
         data_center_trajectories=dc_traj,
         renewable_trajectories=renew_traj,
         revenue=bat_revs + dc_revs + renew_revs,
+        solver_stats=stats,
     )
 
 

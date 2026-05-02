@@ -166,6 +166,12 @@ export interface RevenueBreakdown {
 
 export type SolveStatus = 'optimal' | 'optimal_inaccurate' | 'infeasible'
 
+export interface SolverStats {
+  solver: string
+  n_variables: number
+  n_constraints: number
+}
+
 export interface MultiPeriodSolution {
   status: SolveStatus
   horizon_hours: number
@@ -181,6 +187,7 @@ export interface MultiPeriodSolution {
   data_center_trajectories: DataCenterTrajectory[]
   renewable_trajectories: RenewableTrajectory[]
   revenue: RevenueBreakdown[]
+  solver_stats: SolverStats
 }
 
 export interface SinglePeriodRequest {
@@ -199,6 +206,7 @@ export interface SinglePeriodSolution {
   line_utilization: Record<number, number>
   bus_lmp: Record<number, number>
   bus_load: Record<number, number>
+  solver_stats: SolverStats
 }
 
 export interface ScenarioSummary {

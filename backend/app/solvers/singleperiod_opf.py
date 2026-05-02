@@ -14,7 +14,7 @@ import cvxpy as cp
 import numpy as np
 
 from app.schemas.network import NetworkData
-from app.schemas.optimization import SinglePeriodSolution
+from app.schemas.optimization import SinglePeriodSolution, SolverStats
 
 
 def solve_single_period(
@@ -84,12 +84,21 @@ def solve_single_period(
     objective = cp.Minimize(cp.sum(cp.multiply(P_g, g_cost)))
     problem = cp.Problem(objective, constraints)
 
+    n_variables = int(problem.size_metrics.num_scalar_variables)
+    n_constraints = int(problem.size_metrics.num_scalar_eq_constr) + int(
+        problem.size_metrics.num_scalar_leq_constr
+    )
+
+    solver_used = "HIGHS"
     t0 = time.perf_counter()
     try:
         problem.solve(solver=cp.HIGHS)
     except Exception:
         problem.solve(solver=cp.ECOS)
+        solver_used = "ECOS"
     elapsed = time.perf_counter() - t0
+
+    stats = SolverStats(solver=solver_used, n_variables=n_variables, n_constraints=n_constraints)
 
     if problem.status not in {cp.OPTIMAL, cp.OPTIMAL_INACCURATE}:
         # Never put `inf`/`nan` on the wire: JSON has no Infinity, and downstream
@@ -104,6 +113,7 @@ def solve_single_period(
             line_utilization={ln.id: 0.0 for ln in network.lines},
             bus_lmp={b.id: 0.0 for b in network.buses},
             bus_load={b.id: float(load_per_bus[bi]) for bi, b in enumerate(network.buses)},
+            solver_stats=stats,
         )
 
     P_g_v = np.asarray(P_g.value, dtype=float)
@@ -125,4 +135,5 @@ def solve_single_period(
         line_utilization={ln.id: float(util[li]) for li, ln in enumerate(network.lines)},
         bus_lmp={b.id: float(lmp[bi]) for bi, b in enumerate(network.buses)},
         bus_load={b.id: float(load_per_bus[bi]) for bi, b in enumerate(network.buses)},
+        solver_stats=stats,
     )

@@ -40,6 +40,7 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { formatFixed, formatPct, formatSeconds, formatUSD } from '@/lib/format'
+import { ChartCalculations } from '@/components/dashboard/ChartCalculations'
 import type { PolicyName } from '@/types/api'
 
 type ForecastType = 'perfect' | 'naive' | 'xgboost'
@@ -308,6 +309,18 @@ export function Dashboard() {
               </ResponsiveContainer>
             )}
           </div>
+          <ChartCalculations
+            title="Cumulative revenue formula"
+            formula="\text{CumRev}_\pi(T) = \sum_{t=0}^{T} \text{LMP}_t \cdot \bigl(d_{\pi,t} - c_{\pi,t}\bigr) \cdot \Delta t"
+            variables={[
+              { symbol: '\\pi', meaning: 'policy (Perfect Foresight, MPC, or Myopic)' },
+              { symbol: '\\text{LMP}_t', meaning: 'realized hourly LMP from the test window' },
+              { symbol: 'd_{\\pi,t},\\, c_{\\pi,t}', meaning: 'discharge / charge MW under policy π at hour t' },
+              { symbol: '\\Delta t', meaning: '1 hour timestep' },
+            ]}
+            notes="Each line tracks how much revenue the policy has banked at every hour of the horizon. The PF curve is the achievable upper bound; MPC and Myopic gaps quantify the cost of imperfect foresight."
+            source="Backend SDP runner /sdp/battery on AEP-DAYTON HUB hourly data."
+          />
         </Card>
 
         {/* Decomposition bar */}
@@ -350,6 +363,17 @@ export function Dashboard() {
               </ResponsiveContainer>
             )}
           </div>
+          <ChartCalculations
+            title="Per-component revenue"
+            formula="R_\pi = \underbrace{\sum_t \text{LMP}_t (d_{\pi,t} - c_{\pi,t}) \Delta t}_{\text{energy}} + \underbrace{\sum_t r_t \cdot \beta_t}_{\text{reg}} - \underbrace{\sum_t \kappa (c_{\pi,t} + d_{\pi,t}) \Delta t}_{\text{degradation}}"
+            variables={[
+              { symbol: 'r_t', meaning: 'PJM regulation capacity clearing price ($/MW-hr)' },
+              { symbol: '\\beta_t', meaning: 'capacity offered to regulation at hour t' },
+              { symbol: '\\kappa', meaning: 'battery degradation cost ($/MWh of throughput)' },
+            ]}
+            notes="Bars sum the per-hour contribution of each revenue stream over the full test window. Regulation revenue is capacity-only (performance-only signals are bundled into the energy term in the current backend)."
+            source="Backend revenue breakdown returned by /sdp/battery."
+          />
         </Card>
       </div>
 
@@ -420,6 +444,18 @@ export function Dashboard() {
             </ResponsiveContainer>
           )}
         </div>
+        <ChartCalculations
+          title="RMSE vs optimality gap"
+          formula="\text{RMSE} = \sqrt{\frac{1}{N}\sum_{t=1}^{N}(\hat{p}_t - p_t)^2} \quad\quad \text{Gap}_\pi = \frac{R_{\text{PF}} - R_\pi}{R_{\text{PF}}} \times 100\%"
+          variables={[
+            { symbol: '\\hat{p}_t', meaning: 'forecasted LMP at hour t' },
+            { symbol: 'p_t', meaning: 'realized LMP at hour t' },
+            { symbol: 'R_{\\text{PF}}', meaning: 'revenue under perfect foresight (upper bound)' },
+            { symbol: 'R_\\pi', meaning: 'revenue under policy π using forecast quality at this point' },
+          ]}
+          notes="A point at (0, 0%) is the theoretical perfect-information limit. Points up and to the right reflect the cost of forecast error. The trend gives an empirical price-of-information curve for this asset on this network."
+          source="Backend /forecasting/quality and /sdp/battery against AEP-DAYTON HUB."
+        />
       </Card>
 
       {sdpQuery.isError && (

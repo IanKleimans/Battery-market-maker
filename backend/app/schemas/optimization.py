@@ -146,6 +146,14 @@ class RevenueBreakdown(BaseModel):
     total: float = 0.0
 
 
+class SolverStats(BaseModel):
+    """Diagnostics surfaced to the calculations / solver-trace UI."""
+
+    solver: str = "HIGHS"
+    n_variables: int = 0
+    n_constraints: int = 0
+
+
 class MultiPeriodSolution(BaseModel):
     """Response body for the multi-period DC-OPF."""
 
@@ -168,6 +176,8 @@ class MultiPeriodSolution(BaseModel):
 
     revenue: list[RevenueBreakdown]
 
+    solver_stats: SolverStats = Field(default_factory=SolverStats)
+
 
 class SinglePeriodRequest(BaseModel):
     """Body for the Live-mode single-period DC-OPF."""
@@ -187,3 +197,4 @@ class SinglePeriodSolution(BaseModel):
     line_utilization: dict[int, float]
     bus_lmp: dict[int, float]
     bus_load: dict[int, float]
+    solver_stats: SolverStats = Field(default_factory=SolverStats)
