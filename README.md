@@ -102,8 +102,7 @@ Vercel to your Railway URL. Health check: `GET /health`.
 
 ## Theme
 
-Dark by default — matches the original DC-OPF simulator's serious-energy-product
-aesthetic. A sun/moon toggle in the header switches to a fully designed light
+Dark by default, but can be switched to light mode using the sun/moon toggle in the header switches to a fully designed light
 palette (off-white background, white surfaces, slate-900 text) — not just an
 inverted dark theme. Charts re-tint axis labels and gridlines for readability;
 data colors stay constant so figures remain comparable across modes. The choice
