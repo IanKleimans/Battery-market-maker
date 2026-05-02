@@ -370,3 +370,78 @@ load through `src.utils.pjm_data_loader`.
   data-centre demand response with co-located storage. *Working paper*.
 - CAISO. (2022). *2022 Special Report on Battery Storage*. California
   Independent System Operator.
+
+# 10. v3.0 deployed extensions
+
+This section documents the production-deployed extensions that ship as
+`battery-market-maker.vercel.app` and were added after the report's original
+SDP study. They are explicitly downstream of the IE 590 research and connect
+the project to Dr. Liu's Stackelberg / Grid-of-Tomorrow research line.
+
+## 10.1 Stackelberg market-maker analysis (Phase I)
+
+The deployed simulator's third mode (alongside Live and Optimization) compares
+a flexible AI campus's revenue under two regimes:
+
+- **Price-taker.** The campus assumes its own dispatch does not move LMPs.
+  Its per-period decision reduces to a threshold rule: run at $\text{flex}_{\max}$
+  whenever the compute valuation $v$ exceeds the exogenous LMP $\lambda^{(0)}_t$
+  (taken from the no-leader solve), and at $\text{flex}_{\min}$ otherwise.
+- **Stackelberg-aware.** The campus accounts for its own market impact via
+  the LP-equivalent equilibrium, solved as the joint multi-period DC-OPF.
+
+We compute:
+
+$$
+G \;=\; R_{\text{SA}} - R_{\text{PT}}, \qquad R = v \cdot \sum_t u_t c_{\max} \Delta t \;-\; \sum_t \lambda_t u_t c_{\max} \Delta t.
+$$
+
+Implementation: **iterative best-response**, two-pass. We do not ship a full
+KKT-folded MPEC. The iterative method is the right empirical choice at the
+IEEE 14-bus / 24-hour scale we use here; it is reliable in cvxpy where the
+MPEC's complementarity constraints become numerically fragile. The MPEC
+formulation is documented as the principled future-work extension, naturally
+connecting to the Stackelberg Markov game framework of He, Liu, Chen (2025)
+for adaptive followers under stochastic ISO behavior.
+
+The endpoint is `POST /api/v1/optimization/stackelberg`. On the IEEE 14-bus
+network with a 500 MW campus on bus 9, the analysis surfaces meaningful LMP
+shifts at the leader's bus and adjacent congestion-coupled buses (bus 9, 10,
+14 in particular), which the right-panel "LMP Impact" tab visualizes
+bus-by-bus with magnitude bars.
+
+## 10.2 GPU cluster cost & siting calculator (Phase H)
+
+A separate top-level tool at `/calculator` answering the two questions a real
+AI infrastructure planner asks:
+
+1. *Given my GPU cluster size, what's my annual electricity cost across
+   different regions?*
+2. *Given those costs, where should I site to minimize total cost?*
+
+12 regions, 5 GPU models (H100, B200, GB200, A100, MI300X) plus custom,
+optional co-located storage and demand-response revenue offsets, PDF + CSV
+export. Rates and carbon factors are sourced from EIA Form 861 (US),
+Eurostat NRG_PC_205 (EU), IEA carbon intensity, and NREL eGRID with
+inline citations exposed in a "Data sources" expander. The calculator
+deep-links into the Stackelberg simulator to model how the chosen cluster
+interacts with grid prices.
+
+## 10.3 Why this matters for the broader research question
+
+The Purdue Grid of Tomorrow Consortium (Amazon, NVIDIA, Tesla, MISO) frames
+the central question as: *how do AI data centers integrate with the grid as
+flexible market participants?* The project's three deployed surfaces answer
+three operational pieces of that question:
+
+- The simulator quantifies how a 500 MW campus moves LMPs at a thinly-traded
+  node.
+- The calculator ranks regions by total electricity cost and CO2, including
+  storage / DR revenue offsets.
+- The dashboard quantifies the value of forecast quality for the asset's own
+  dispatch decisions.
+
+The natural extensions, listed in the deployed `/about` roadmap, are full
+MPEC at the IEEE 30-bus scale, multi-agent campuses competing for the same
+congested node, learning-based best-response (PPO over the leader's dispatch
+policy), and the stochastic-ISO Stackelberg Markov game extension.

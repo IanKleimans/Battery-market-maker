@@ -188,3 +188,60 @@ Code, tests, figures, and this deck are reproducible from `make all`.
 Questions?
 
 Ian Kleimans · `kleimans@purdue.edu`
+
+---
+
+## v3.0 deployed extensions
+
+`battery-market-maker.vercel.app`
+
+Three new surfaces beyond the SDP study:
+
+- **Stackelberg market-maker mode** — quantifies $\$$ gain of accounting for
+  own LMP impact at a 500 MW campus on IEEE 14-bus
+- **GPU cluster cost calculator** — 12 regions, 5 GPU models, storage / DR
+  revenue offsets, PDF + CSV export
+- **Show calculations** panels everywhere — merit-order dispatch, binding
+  constraints, LMP decomposition, KaTeX-rendered objective decomposition
+
+---
+
+## Stackelberg analysis
+
+Compare price-taker (campus assumes exogenous LMPs) vs Stackelberg-aware
+(campus accounts for its own market impact via joint LP).
+
+$$
+u_{\text{PT}}(t) =
+\begin{cases}
+  \text{flex}_{\max} & v > \lambda^{(0)}_t \\
+  \text{flex}_{\min} & v \le \lambda^{(0)}_t
+\end{cases}
+\qquad G = R_{\text{SA}} - R_{\text{PT}}
+$$
+
+- Iterative best-response, two-pass, IEEE 14-bus / 24 hours
+- KaTeX methodology tab + MPEC future-work pointer
+- Connects to He, Liu, Chen (2025) Stackelberg Markov games
+
+---
+
+## GPU cluster cost calculator
+
+> *1M H100s in Texas at 80% utilization: \$757M/yr*
+> *Same cluster in Virginia: \$908M/yr (+20%)*
+
+12 regions (US + EU + China + Saudi), 5 GPU models. Optional co-located
+storage (\$35/kW-yr PJM-default) and demand response (\$5-15/kW-yr) revenue.
+Single-page PDF report + CSV region table for sharing.
+
+Cited inline: EIA Form 861, Eurostat NRG_PC_205, NVIDIA datasheets, NREL
+eGRID 2024, IEA 2024.
+
+---
+
+## Live demo
+
+`https://battery-market-maker.vercel.app`
+
+Press kit: `/press` · Methodology: `/about` · Source: github.com/IanKleimans/Battery-market-maker

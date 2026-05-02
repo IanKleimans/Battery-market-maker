@@ -206,8 +206,23 @@ def solve_stackelberg(
         renewables=renewables,
         forecast=forecast,
     )
-    pt_leader_lmps = _bus_lmps_over_time(pt_solution, leader.bus)
-    pt_leader_consumption = _consumption_for_leader(pt_solution, leader.id)
+
+    # If the ISO re-clear with the leader fixed goes infeasible (typical when
+    # the leader is large relative to network capacity), fall back to the
+    # no-leader LMPs and the leader's analytic threshold-rule consumption.
+    # This still represents the "price-taker assumes exogenous LMPs" baseline
+    # honestly, and avoids the silent zero result the user saw before.
+    pt_infeasible = (
+        pt_solution.status == "infeasible"
+        or len(pt_solution.lmps) == 0
+        or all(len(p.lmp_per_mwh) == 0 for p in pt_solution.lmps)
+    )
+    if pt_infeasible:
+        pt_leader_lmps = leader_lmp_series
+        pt_leader_consumption = pt_consumption
+    else:
+        pt_leader_lmps = _bus_lmps_over_time(pt_solution, leader.bus)
+        pt_leader_consumption = _consumption_for_leader(pt_solution, leader.id)
     pt_leader_revenue = _leader_revenue(
         leader, pt_leader_consumption, pt_leader_lmps, dt_hours
     )
@@ -229,8 +244,10 @@ def solve_stackelberg(
         leader, sa_leader_consumption, sa_leader_lmps, dt_hours
     )
 
-    # Compute LMP impact per bus
-    pt_avg = _avg_lmps_per_bus(pt_solution.lmps, len(network.buses))
+    # Compute LMP impact per bus. On the PT side, fall back to no-leader LMPs
+    # when the joint re-clear with fixed leader was infeasible.
+    pt_lmps_source = no_leader.lmps if pt_infeasible else pt_solution.lmps
+    pt_avg = _avg_lmps_per_bus(pt_lmps_source, len(network.buses))
     sa_avg = _avg_lmps_per_bus(sa_solution.lmps, len(network.buses))
     bus_name_by_id = {b.id: b.name for b in network.buses}
     bus_impacts = [
@@ -244,13 +261,14 @@ def solve_stackelberg(
         for b in sorted(set(pt_avg) | set(sa_avg))
     ]
 
-    # Per-(bus, time) maximum delta is the stronger headline number
+    # Per-(bus, time) maximum delta is the stronger headline number.
+    # Compare against the same source we used for pt_avg.
     max_delta = 0.0
-    for entry_pt, entry_sa in zip(pt_solution.lmps, sa_solution.lmps):
-        if entry_pt.bus != entry_sa.bus:
-            continue
-        a = np.asarray(entry_pt.lmp_per_mwh, dtype=float)
-        b = np.asarray(entry_sa.lmp_per_mwh, dtype=float)
+    pt_by_bus = {p.bus: np.asarray(p.lmp_per_mwh, dtype=float) for p in pt_lmps_source}
+    sa_by_bus = {p.bus: np.asarray(p.lmp_per_mwh, dtype=float) for p in sa_solution.lmps}
+    for bus_id in set(pt_by_bus) & set(sa_by_bus):
+        a = pt_by_bus[bus_id]
+        b = sa_by_bus[bus_id]
         if a.size == 0 or b.size == 0:
             continue
         n = min(a.size, b.size)
@@ -265,12 +283,13 @@ def solve_stackelberg(
     )
     converged = max_delta < convergence_tol or sa_leader_revenue == pt_leader_revenue
 
-    # Market power index: rough heuristic — fraction of system cost
-    # attributable to the leader's market-making behavior.
-    sys_cost_pt = pt_solution.total_system_cost
+    # Market power index: bounded fraction of system cost attributable to
+    # the leader's market-making behavior. Capped at 1.0 so the UI doesn't
+    # show numbers like 6900% when the PT branch was infeasible.
+    sys_cost_pt = pt_solution.total_system_cost if not pt_infeasible else 0.0
     sys_cost_sa = sa_solution.total_system_cost
-    denom = max(abs(sys_cost_pt), 1.0)
-    mpi = abs(sys_cost_pt - sys_cost_sa) / denom
+    denom = max(abs(sys_cost_pt), abs(sys_cost_sa), 1.0)
+    mpi = min(1.0, abs(sys_cost_pt - sys_cost_sa) / denom)
 
     _ = time.perf_counter  # keep import for future timing additions
     _ = max_iterations  # honored implicitly by the two-pass scheme above
