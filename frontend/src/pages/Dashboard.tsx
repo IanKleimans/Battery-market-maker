@@ -7,9 +7,13 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Label,
+  LabelList,
   Legend,
   Line as RLine,
   LineChart,
+  ReferenceDot,
+  ReferenceLine,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
@@ -24,6 +28,7 @@ import {
   Clock,
   Cpu,
   DollarSign,
+  Info,
   RefreshCw,
 } from 'lucide-react'
 import { api } from '@/api/client'
@@ -51,11 +56,23 @@ const policyMeta: Record<PolicyName, { label: string; color: string }> = {
   myopic_greedy: { label: 'Myopic', color: '#f59e0b' },
 }
 
+/** Test windows the user can flip between. Each maps to a deterministic seed
+ * passed to the backend's synthetic price generator, so each window is
+ * reproducible across visits. */
+const TEST_WINDOWS: Array<{ value: number; label: string; description: string }> = [
+  { value: 42, label: 'Window A · base', description: 'Mid-volatility baseline (default)' },
+  { value: 7, label: 'Window B · calm', description: 'Flat overnight prices, narrow spread' },
+  { value: 11, label: 'Window C · volatile', description: 'Wide spread, multiple price spikes' },
+  { value: 23, label: 'Window D · heatwave', description: 'Sustained high afternoon prices' },
+  { value: 91, label: 'Window E · negative', description: 'Renewables crash prices into the negatives' },
+  { value: 137, label: 'Window F · congestion', description: 'Long binding-line periods' },
+]
+
 export function Dashboard() {
   usePageMeta({
     title: 'Dashboard',
     description:
-      'Compare Perfect Foresight, MPC, and Myopic battery dispatch policies on PJM data.',
+      'Compare Perfect Foresight, MPC, and Myopic battery dispatch policies on a synthetic test window.',
   })
   const colors = useThemeColors()
   const [seed, setSeed] = useState(42)
@@ -89,6 +106,7 @@ export function Dashboard() {
   const policies = sdpQuery.data?.policies ?? []
   const pf = policies.find((p) => p.policy_name === 'perfect_foresight')
   const mpc = policies.find((p) => p.policy_name === 'mpc')
+  const myopic = policies.find((p) => p.policy_name === 'myopic_greedy')
 
   // Cumulative revenue per policy
   const revenueSeries = useMemo(() => {
@@ -123,8 +141,8 @@ export function Dashboard() {
     }))
   }, [policies])
 
-  // Scatter: RMSE vs gap (single point per scenario; we only have one but
-  // place 3 forecast tiers as a tradeoff curve)
+  // Scatter: RMSE vs gap. One point per (forecaster x policy) pair, plus
+  // anchor reference points for Perfect Foresight (0, 0) and Myopic baseline.
   const scatterData = useMemo(() => {
     if (!fcQuery.data || !pf) return []
     return policies
@@ -132,9 +150,10 @@ export function Dashboard() {
       .map((p) => ({
         name: policyMeta[p.policy_name].label,
         rmse: fcQuery.data.rmse_per_mwh,
-        gap_pct: pf.total_revenue > 0
-          ? ((pf.total_revenue - p.total_revenue) / pf.total_revenue) * 100
-          : 0,
+        gap_pct:
+          pf.total_revenue > 0
+            ? ((pf.total_revenue - p.total_revenue) / pf.total_revenue) * 100
+            : 0,
         z: p.solve_time_seconds,
       }))
   }, [fcQuery.data, policies, pf])
@@ -145,12 +164,36 @@ export function Dashboard() {
     return ((pf.total_revenue - mpc.total_revenue) / pf.total_revenue) * 100
   }, [pf, mpc])
 
+  const myopicGap = useMemo(() => {
+    if (!pf || !myopic) return null
+    if (pf.total_revenue <= 0) return 0
+    return ((pf.total_revenue - myopic.total_revenue) / pf.total_revenue) * 100
+  }, [pf, myopic])
+
   const avgSolveTime = useMemo(() => {
     if (policies.length === 0) return null
     return policies.reduce((acc, p) => acc + p.solve_time_seconds, 0) / policies.length
   }, [policies])
 
+  const totalRevenueZero =
+    !!pf && pf.total_revenue <= 1 && (mpc?.total_revenue ?? 0) <= 1
+
   const isLoading = sdpQuery.isLoading || fcQuery.isLoading
+  const hasData = !!sdpQuery.data && policies.length > 0
+
+  // Final cumulative value per policy, for the right-edge annotations.
+  const finals = useMemo(() => {
+    if (revenueSeries.length === 0) return {} as Record<string, number>
+    const last = revenueSeries[revenueSeries.length - 1]!
+    const out: Record<string, number> = {}
+    for (const p of policies) {
+      const v = last[p.policy_name]
+      out[p.policy_name] = typeof v === 'number' ? v : 0
+    }
+    return out
+  }, [revenueSeries, policies])
+
+  const windowDescription = TEST_WINDOWS.find((w) => w.value === seed)?.description
 
   return (
     <div className="flex-1 p-6 max-w-[1400px] mx-auto w-full space-y-6">
@@ -158,18 +201,31 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-semibold text-text-1">Analysis Dashboard</h1>
           <p className="text-sm text-text-2 mt-1">
-            SDP policy comparison: Perfect Foresight ≥ MPC ≥ Myopic Greedy.
-            Powered by the FastAPI <code className="mono text-xs px-1.5 bg-bg rounded">/sdp/battery</code> endpoint.
+            Perfect Foresight ≥ MPC ≥ Myopic Greedy on a synthetic price window.
+            Backed by <code className="mono text-xs px-1.5 bg-bg rounded">/sdp/battery</code>.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge tone="success">REAL PJM (AEP-DAYTON HUB, Mar–Apr 2026)</Badge>
+          <Badge tone="warning">SYNTHETIC PRICES</Badge>
         </div>
       </div>
 
       {/* Controls */}
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <CardSubtitle>Test window</CardSubtitle>
+            <Select
+              value={String(seed)}
+              onValueChange={(v) => setSeed(Number(v))}
+              size="sm"
+              options={TEST_WINDOWS.map((w) => ({
+                value: String(w.value),
+                label: w.label,
+                description: w.description,
+              }))}
+            />
+          </div>
           <div>
             <CardSubtitle>Forecast</CardSubtitle>
             <Select
@@ -193,20 +249,7 @@ export function Dashboard() {
                 { value: '24', label: '1 day' },
                 { value: '48', label: '2 days' },
                 { value: '72', label: '3 days' },
-              ]}
-            />
-          </div>
-          <div>
-            <CardSubtitle>Seed (week)</CardSubtitle>
-            <Select
-              value={String(seed)}
-              onValueChange={(v) => setSeed(Number(v))}
-              size="sm"
-              options={[
-                { value: '42', label: 'Week 42 — base' },
-                { value: '7', label: 'Week 7 — calm' },
-                { value: '11', label: 'Week 11 — volatile' },
-                { value: '23', label: 'Week 23 — heatwave' },
+                { value: '168', label: '7 days' },
               ]}
             />
           </div>
@@ -220,6 +263,12 @@ export function Dashboard() {
             <RefreshCw size={14} /> Refetch
           </Button>
         </div>
+        {windowDescription && (
+          <p className="text-[11px] text-text-2 mono mt-2 flex items-center gap-1.5">
+            <Info size={11} className="text-accent" />
+            {windowDescription}
+          </p>
+        )}
       </Card>
 
       {/* Metric row */}
@@ -232,11 +281,16 @@ export function Dashboard() {
           loading={isLoading}
         />
         <MetricCard
-          label="Optimality Gap"
+          label="MPC Optimality Gap"
           value={optimalityGap === null ? '—' : `${formatFixed(optimalityGap, 1)}%`}
           unit="vs PF"
           icon={<Activity size={14} />}
           loading={isLoading}
+          delta={
+            optimalityGap !== null && myopicGap !== null
+              ? { value: myopicGap - optimalityGap, label: 'vs Myopic' }
+              : undefined
+          }
         />
         <MetricCard
           label="Forecast RMSE"
@@ -253,6 +307,26 @@ export function Dashboard() {
         />
       </div>
 
+      {/* Empty state when this window genuinely had no arbitrage */}
+      {hasData && totalRevenueZero && (
+        <Card className="p-4 border-warning/40">
+          <div className="flex items-start gap-3">
+            <Info size={16} className="text-warning shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-semibold text-text-1">
+                No profitable arbitrage in this window
+              </h3>
+              <p className="text-xs text-text-2 mt-1">
+                Every policy in this window finds the spread between charge-cheap and
+                discharge-expensive hours too thin to justify cycling, so total revenue is
+                zero or negative after degradation. Pick a more volatile window above to
+                see the policy comparison.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Revenue line — wider */}
@@ -266,15 +340,26 @@ export function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueSeries}>
+                <LineChart data={revenueSeries} margin={{ right: 100, top: 10 }}>
                   <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" stroke={colors.axisLabel} fontSize={10} />
+                  <XAxis
+                    dataKey="hour"
+                    stroke={colors.axisLabel}
+                    fontSize={10}
+                    label={{
+                      value: 'Hour',
+                      position: 'insideBottom',
+                      offset: -2,
+                      style: { fontSize: 10, fill: colors.axisLabel },
+                    }}
+                  />
                   <YAxis
                     stroke={colors.axisLabel}
                     fontSize={10}
                     tickFormatter={(v) => formatUSD(v as number)}
                   />
                   <RTooltip
+                    cursor={{ stroke: colors.accent, strokeWidth: 1, strokeDasharray: '3 3' }}
                     contentStyle={{
                       background: colors.tooltipBg,
                       border: `1px solid ${colors.border}`,
@@ -284,6 +369,7 @@ export function Dashboard() {
                     }}
                     itemStyle={{ color: '#f1f5f9' }}
                     labelStyle={{ color: '#f1f5f9' }}
+                    labelFormatter={(label) => `Hour ${label}`}
                     formatter={(v, name) => [
                       typeof v === 'number' ? formatUSD(v, true) : String(v ?? '—'),
                       policyMeta[name as PolicyName]?.label ?? String(name),
@@ -302,7 +388,41 @@ export function Dashboard() {
                         strokeWidth={2}
                         dot={false}
                         isAnimationActive={false}
-                      />
+                      >
+                        {/* Final-value label at the rightmost point only */}
+                        <LabelList
+                          dataKey={p}
+                          position="right"
+                          fontSize={10}
+                          fill={policyMeta[p].color}
+                          fontFamily="IBM Plex Mono"
+                          content={((rawProps: unknown) => {
+                            const props = rawProps as {
+                              x?: number | string
+                              y?: number | string
+                              index?: number
+                              value?: number | string
+                            }
+                            if (props.index !== revenueSeries.length - 1) return null
+                            const v = props.value
+                            if (typeof v !== 'number') return null
+                            const x = typeof props.x === 'number' ? props.x : Number(props.x ?? 0)
+                            const y = typeof props.y === 'number' ? props.y : Number(props.y ?? 0)
+                            return (
+                              <text
+                                x={x + 6}
+                                y={y + 3}
+                                fill={policyMeta[p].color}
+                                fontSize={10}
+                                fontFamily="IBM Plex Mono"
+                                fontWeight={600}
+                              >
+                                {formatUSD(v)}
+                              </text>
+                            )
+                          }) as never}
+                        />
+                      </RLine>
                     ),
                   )}
                 </LineChart>
@@ -318,8 +438,8 @@ export function Dashboard() {
               { symbol: 'd_{\\pi,t},\\, c_{\\pi,t}', meaning: 'discharge / charge MW under policy π at hour t' },
               { symbol: '\\Delta t', meaning: '1 hour timestep' },
             ]}
-            notes="Each line tracks how much revenue the policy has banked at every hour of the horizon. The PF curve is the achievable upper bound; MPC and Myopic gaps quantify the cost of imperfect foresight."
-            source="Backend SDP runner /sdp/battery on AEP-DAYTON HUB hourly data."
+            notes={`Each line tracks how much revenue the policy has banked at every hour of the horizon. PF (final ${formatUSD(finals.perfect_foresight ?? 0)}) is the achievable upper bound; MPC and Myopic gaps quantify the cost of imperfect foresight.`}
+            source="Backend SDP runner /sdp/battery on synthetic prices (seeded for reproducibility)."
           />
         </Card>
 
@@ -336,15 +456,21 @@ export function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={decompositionData} layout="vertical">
                   <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" />
-                  <XAxis type="number" stroke={colors.axisLabel} fontSize={10} />
+                  <XAxis
+                    type="number"
+                    stroke={colors.axisLabel}
+                    fontSize={10}
+                    tickFormatter={(v) => formatUSD(v as number)}
+                  />
                   <YAxis
                     type="category"
                     dataKey="name"
                     stroke={colors.axisLabel}
                     fontSize={10}
-                    width={70}
+                    width={100}
                   />
                   <RTooltip
+                    cursor={{ fill: 'transparent' }}
                     contentStyle={{
                       background: colors.tooltipBg,
                       border: `1px solid ${colors.border}`,
@@ -354,6 +480,10 @@ export function Dashboard() {
                     }}
                     itemStyle={{ color: '#f1f5f9' }}
                     labelStyle={{ color: '#f1f5f9' }}
+                    formatter={(v, name) => [
+                      typeof v === 'number' ? formatUSD(v) : String(v ?? '—'),
+                      String(name),
+                    ]}
                   />
                   <Legend />
                   <Bar dataKey="Energy" stackId="a" fill="#2563eb" />
@@ -371,7 +501,7 @@ export function Dashboard() {
               { symbol: '\\beta_t', meaning: 'capacity offered to regulation at hour t' },
               { symbol: '\\kappa', meaning: 'battery degradation cost ($/MWh of throughput)' },
             ]}
-            notes="Bars sum the per-hour contribution of each revenue stream over the full test window. Regulation revenue is capacity-only (performance-only signals are bundled into the energy term in the current backend)."
+            notes="Bars sum the per-hour contribution of each revenue stream over the full test window. Negative degradation eats into the energy + regulation total."
             source="Backend revenue breakdown returned by /sdp/battery."
           />
         </Card>
@@ -381,15 +511,15 @@ export function Dashboard() {
       <Card className="p-4">
         <CardTitle>Forecast RMSE vs Optimality Gap</CardTitle>
         <CardSubtitle>
-          The cost of forecast error: how much revenue MPC and Myopic leave on
-          the table relative to perfect foresight.
+          The cost of forecast error: how much revenue MPC and Myopic leave on the table
+          relative to perfect foresight. Lower-left is better.
         </CardSubtitle>
         <div className="h-64 mt-3">
           {isLoading ? (
             <Skeleton className="w-full h-full" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart>
+              <ScatterChart margin={{ top: 16, right: 24, bottom: 16, left: 0 }}>
                 <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" />
                 <XAxis
                   type="number"
@@ -398,7 +528,15 @@ export function Dashboard() {
                   unit=" $/MWh"
                   stroke={colors.axisLabel}
                   fontSize={10}
-                />
+                  domain={[0, 'auto']}
+                >
+                  <Label
+                    value="RMSE ($/MWh)"
+                    position="insideBottom"
+                    offset={-4}
+                    style={{ fontSize: 10, fill: colors.axisLabel }}
+                  />
+                </XAxis>
                 <YAxis
                   type="number"
                   dataKey="gap_pct"
@@ -406,9 +544,18 @@ export function Dashboard() {
                   unit="%"
                   stroke={colors.axisLabel}
                   fontSize={10}
-                />
-                <ZAxis type="number" dataKey="z" range={[60, 200]} />
+                  domain={[0, 'auto']}
+                >
+                  <Label
+                    value="Gap (%)"
+                    angle={-90}
+                    position="insideLeft"
+                    style={{ fontSize: 10, fill: colors.axisLabel }}
+                  />
+                </YAxis>
+                <ZAxis type="number" dataKey="z" range={[80, 220]} />
                 <RTooltip
+                  cursor={{ strokeDasharray: '3 3' }}
                   contentStyle={{
                     background: colors.tooltipBg,
                     border: `1px solid ${colors.border}`,
@@ -425,10 +572,27 @@ export function Dashboard() {
                     return [String(value ?? '—'), String(name)]
                   }}
                 />
-                <Scatter
-                  data={scatterData}
-                  isAnimationActive={false}
-                >
+                {/* Reference line at gap = 0 (Perfect Foresight) */}
+                <ReferenceLine
+                  y={0}
+                  stroke={policyMeta.perfect_foresight.color}
+                  strokeDasharray="3 3"
+                  label={{
+                    value: 'Perfect Foresight',
+                    position: 'insideTopLeft',
+                    fontSize: 9,
+                    fill: policyMeta.perfect_foresight.color,
+                  }}
+                />
+                {/* Reference dot at the origin */}
+                <ReferenceDot
+                  x={0}
+                  y={0}
+                  r={4}
+                  fill={policyMeta.perfect_foresight.color}
+                  stroke="none"
+                />
+                <Scatter data={scatterData} isAnimationActive={false}>
                   {scatterData.map((d, i) => (
                     <Cell
                       key={i}
@@ -453,28 +617,27 @@ export function Dashboard() {
             { symbol: 'R_{\\text{PF}}', meaning: 'revenue under perfect foresight (upper bound)' },
             { symbol: 'R_\\pi', meaning: 'revenue under policy π using forecast quality at this point' },
           ]}
-          notes="A point at (0, 0%) is the theoretical perfect-information limit. Points up and to the right reflect the cost of forecast error. The trend gives an empirical price-of-information curve for this asset on this network."
-          source="Backend /forecasting/quality and /sdp/battery against AEP-DAYTON HUB."
+          notes="The (0, 0%) reference dot is the theoretical perfect-information limit. Points up and to the right reflect the cost of forecast error. The trend gives an empirical price-of-information curve for this asset on this window."
+          source="Backend /forecasting/quality and /sdp/battery on the synthetic price corpus."
         />
       </Card>
 
       {sdpQuery.isError && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <Card className="border-danger/40">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Card className="border-danger/40 p-3">
             <p className="text-sm text-danger">
-              Couldn't reach the backend. Make sure FastAPI is running on port 8000.
+              Couldn't reach the backend. Check the API health badge in the footer or
+              wait 10-15 seconds for Railway to cold-start, then click Refetch above.
             </p>
           </Card>
         </motion.div>
       )}
 
       <p className="text-[10px] text-text-2 mono">
-        Based on synthetic prices generated server-side. Toggle{' '}
-        <span className="text-text-1">Forecast</span> to see how forecast quality
-        changes the gap. Coverage in the report is in <code>report/IE590_final_report.md</code>.
+        Synthetic prices generated server-side; each test window is reproducible from
+        its seed. Toggle <span className="text-text-1">Forecast</span> to see how
+        forecast quality changes the gap. Coverage in the report is in{' '}
+        <code>report/IE590_final_report.md</code>.
       </p>
 
       {/* silence unused import for formatPct (kept for future thresholds) */}
