@@ -55,6 +55,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+interface CallOpts {
+  signal?: AbortSignal
+}
+
 export const api = {
   listNetworks: () => request<NetworkSummary[]>('/networks'),
   getNetwork: (name: NetworkName) => request<NetworkData>(`/networks/${name}`),
@@ -65,10 +69,11 @@ export const api = {
       body: JSON.stringify(req),
     }),
 
-  singleperiodOPF: (req: SinglePeriodRequest) =>
+  singleperiodOPF: (req: SinglePeriodRequest, opts?: CallOpts) =>
     request<SinglePeriodSolution>('/optimization/singleperiod', {
       method: 'POST',
       body: JSON.stringify(req),
+      signal: opts?.signal,
     }),
 
   listScenarios: () => request<ScenarioSummary[]>('/scenarios'),

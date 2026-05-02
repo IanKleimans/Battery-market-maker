@@ -1,12 +1,14 @@
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { formatFixed } from '@/lib/format'
 
 export interface MetricCardProps {
   label: string
   value: ReactNode
   unit?: string
-  delta?: { value: number; label?: string }
+  /** delta.value may be null/undefined/NaN — the card hides itself in that case. */
+  delta?: { value: number | null | undefined; label?: string }
   icon?: ReactNode
   className?: string
   loading?: boolean
@@ -30,13 +32,10 @@ export function MetricCard({
     )
   }
 
-  const trend = delta
-    ? delta.value > 0
-      ? 'up'
-      : delta.value < 0
-        ? 'down'
-        : 'flat'
-    : null
+  const deltaUsable =
+    delta && typeof delta.value === 'number' && Number.isFinite(delta.value)
+  const dv = deltaUsable ? (delta!.value as number) : 0
+  const trend = deltaUsable ? (dv > 0 ? 'up' : dv < 0 ? 'down' : 'flat') : null
 
   return (
     <div
@@ -56,7 +55,7 @@ export function MetricCard({
         </span>
         {unit && <span className="text-xs text-text-2">{unit}</span>}
       </div>
-      {delta && (
+      {deltaUsable && (
         <div
           className={cn(
             'mt-2 flex items-center gap-1 text-xs mono',
@@ -69,9 +68,9 @@ export function MetricCard({
           {trend === 'down' && <TrendingDown size={12} />}
           {trend === 'flat' && <Minus size={12} />}
           <span>
-            {delta.value > 0 ? '+' : ''}
-            {delta.value.toFixed(1)}
-            {delta.label ? ` ${delta.label}` : ''}
+            {dv > 0 ? '+' : ''}
+            {formatFixed(dv, 1)}
+            {delta!.label ? ` ${delta!.label}` : ''}
           </span>
         </div>
       )}
