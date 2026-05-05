@@ -16,46 +16,17 @@ export function About() {
       <header>
         <h1 className="text-2xl font-semibold text-text-1 mb-2">About this project</h1>
         <p className="text-sm text-text-2 leading-relaxed max-w-prose">
-          Battery Market Maker is the deployed companion to{' '}
-          <em>Stochastic Dynamic Programming for Grid-Scale Battery Co-Optimization</em>,
-          my IE 590 project at Purdue Industrial Engineering. It extends the original
-          single-asset SDP study (PF-LP / Myopic / MPC) with a multi-period DC-OPF on
-          standard IEEE test systems, asset placement (batteries, AI campuses,
-          renewables), a Stackelberg market-maker mode, and a GPU cluster cost
-          calculator.
+          Battery Market Maker extends the single-asset SDP study (PF-LP / Myopic
+          / MPC) with a multi-period DC-OPF on standard IEEE test systems, asset
+          placement (batteries, AI campuses, renewables), a Stackelberg
+          market-maker mode, and a GPU cluster cost calculator.
+        </p>
+        <p className="text-xs text-text-3 mt-3 mono">
+          Ian Kleimans, Industrial Engineering, Purdue University. Final project
+          for IE 590 — Energy Systems in the Age of AI, Spring 2026, Dr. Andrew
+          L. Liu.
         </p>
       </header>
-
-      <section>
-        <h2 className="text-base font-semibold text-text-1 mb-3">Why I built this</h2>
-        <Card className="text-sm leading-relaxed text-text-2 space-y-3">
-          <p>
-            I grew up in Campana, Argentina, on the Paraná River, ten minutes
-            walking distance from the grain terminals where soybean barges leave for
-            the world. Watching commodities physically move through that infrastructure
-            shaped my sense of what economic activity actually looks like. It is not
-            charts. It is barges, trains, transformers, transmission lines.
-          </p>
-          <p>
-            Compute is the next commodity that needs that kind of physical accounting.
-            I built Compute Tracker last year (now eight thousand monthly users) to
-            give people a basic read on where GPU capacity sits and what it costs.
-            Battery Market Maker is the same instinct one layer down: model the
-            grid that the GPUs run on, in enough detail to ask the questions a real
-            infrastructure planner has to ask. How much does this cluster cost in
-            Texas vs Virginia. What happens to LMPs at this thinly-traded node when
-            we drop a 500 MW campus on it. Does it pay to act like a market maker.
-          </p>
-          <p>
-            Dr. Andrew L. Liu's research on Stackelberg games in energy markets,
-            and the Purdue Grid of Tomorrow Consortium he co-leads with Amazon,
-            NVIDIA, Tesla, and MISO, is exactly this question at the academic
-            frontier. The market-maker mode in this project is my first pass at
-            making those dynamics visceral on a real network. The next pass is
-            the Lilly AI Fellowship, where I plan to push it further.
-          </p>
-        </Card>
-      </section>
 
       <section>
         <h2 className="text-base font-semibold text-text-1 mb-2">Multi-period DC-OPF</h2>
@@ -172,18 +143,14 @@ export function About() {
               alongside the financial LMP.
             </li>
           </ul>
-          <p className="pt-1">
-            Continuation work will land at the Lilly AI Fellowship and beyond.
-          </p>
         </Card>
       </section>
 
       <section>
         <h2 className="text-base font-semibold text-text-1 mb-2">Acknowledgments</h2>
         <p className="text-sm text-text-2 leading-relaxed">
-          Dr. Andrew L. Liu (advisor), Purdue Industrial Engineering, and the Purdue
-          Grid of Tomorrow Consortium. The PJM data path uses the public Data Miner
-          2 API.
+          Thanks to Dr. Andrew L. Liu, instructor of IE 590 at Purdue Industrial
+          Engineering, for the course content that grounds this work.
         </p>
       </section>
 
@@ -202,7 +169,7 @@ export function About() {
           href="/press"
           className="inline-flex items-center gap-2 text-xs text-accent hover:underline"
         >
-          Press kit <ExternalLink size={12} />
+          Project info <ExternalLink size={12} />
         </a>
         <a
           href="/api/v1/health"
@@ -225,10 +192,10 @@ function CitationCard() {
             Grid-Scale Battery Co-Optimization},
   year   = {2026},
   howpublished = {\\url{https://battery-market-maker.vercel.app}},
-  note   = {IE 590 final project, Purdue Industrial Engineering,
-            advised by Dr. Andrew L. Liu}
+  note   = {Final project for IE 590 --- Energy Systems in the Age of AI,
+            Spring 2026, Dr. Andrew L. Liu, Purdue Industrial Engineering}
 }`
-  const chicago = `Kleimans, Ian. "Battery Market Maker: Stochastic Dynamic Programming for Grid-Scale Battery Co-Optimization." IE 590 final project, Purdue Industrial Engineering, 2026. https://battery-market-maker.vercel.app.`
+  const chicago = `Kleimans, Ian. "Battery Market Maker: Stochastic Dynamic Programming for Grid-Scale Battery Co-Optimization." Final project for IE 590 — Energy Systems in the Age of AI, Spring 2026, Dr. Andrew L. Liu, Purdue Industrial Engineering. https://battery-market-maker.vercel.app.`
 
   const copy = (key: 'bibtex' | 'chicago', text: string) => {
     void navigator.clipboard.writeText(text).then(() => {

@@ -1,5 +1,5 @@
-/** Press kit page. The single URL Ian sends to a recruiter when applying
- * to a trading desk or AI-infrastructure firm. */
+/** Project information page. Architecture, performance numbers, tech stack,
+ * and pointers to canonical demo views. No biography. */
 
 import { Link } from 'react-router-dom'
 import {
@@ -9,42 +9,42 @@ import {
   Cpu,
   ExternalLink,
   GitFork,
-  Globe,
-  Mail,
   Server,
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
-import { Card, CardSubtitle, CardTitle } from '@/components/ui'
+import { Card, CardSubtitle } from '@/components/ui'
 import { usePageMeta } from '@/hooks/usePageMeta'
 
 export function Press() {
   usePageMeta({
-    title: 'Press kit',
+    title: 'Project information',
     description:
-      'One-page press kit for Battery Market Maker — elevator pitch, screenshots, architecture, performance numbers, and contact.',
+      'Architecture, performance numbers, tech stack, and canonical demo views for Battery Market Maker.',
   })
 
   return (
     <div className="flex-1 max-w-[1100px] mx-auto px-6 py-10 w-full space-y-8">
       <header>
         <div className="text-xs mono uppercase tracking-widest text-accent mb-2">
-          Press kit
+          Project information
         </div>
         <h1 className="text-3xl font-semibold text-text-1 mb-3">
           Battery Market Maker
         </h1>
         <p className="text-base text-text-2 leading-relaxed max-w-3xl">
-          A working multi-period DC-OPF simulator for grid-scale batteries and AI
-          data centers, with a Stackelberg market-maker mode that quantifies the
-          dollar value of a hyperscaler accounting for its own LMP impact, plus a
-          GPU cluster cost calculator that ranks 12 regions for siting decisions.
-          Built end-to-end by Ian Kleimans for IE 590 at Purdue Industrial
-          Engineering, advised by Dr. Andrew L. Liu.
+          A multi-period DC-OPF simulator for grid-scale batteries and AI data
+          centers, with a Stackelberg market-maker mode that quantifies the dollar
+          value of a hyperscaler accounting for its own LMP impact, plus a GPU
+          cluster cost calculator that ranks 12 regions for siting decisions.
+        </p>
+        <p className="text-xs text-text-3 mt-3 mono">
+          Ian Kleimans, Industrial Engineering, Purdue University. Final project
+          for IE 590 — Energy Systems in the Age of AI, Spring 2026, Dr. Andrew
+          L. Liu.
         </p>
       </header>
 
-      {/* Five-bullet feature list */}
       <section>
         <h2 className="text-sm font-semibold text-text-1 uppercase tracking-wider mb-3">
           What it does
@@ -69,7 +69,6 @@ export function Press() {
         </div>
       </section>
 
-      {/* Architecture diagram (ASCII / SVG combo) */}
       <section>
         <h2 className="text-sm font-semibold text-text-1 uppercase tracking-wider mb-3">
           Architecture
@@ -95,7 +94,6 @@ export function Press() {
         </Card>
       </section>
 
-      {/* Performance numbers */}
       <section>
         <h2 className="text-sm font-semibold text-text-1 uppercase tracking-wider mb-3">
           Performance & coverage
@@ -113,7 +111,6 @@ export function Press() {
         </div>
       </section>
 
-      {/* Tech stack */}
       <section>
         <h2 className="text-sm font-semibold text-text-1 uppercase tracking-wider mb-3">
           Tech stack
@@ -132,15 +129,14 @@ export function Press() {
         </Card>
       </section>
 
-      {/* Suggested screenshots / live URLs */}
       <section>
         <h2 className="text-sm font-semibold text-text-1 uppercase tracking-wider mb-3">
-          Suggested captures
+          Canonical views
         </h2>
         <Card className="p-4">
           <p className="text-xs text-text-2 mb-3">
-            Use Cmd/Ctrl+Shift+S inside the app to toggle screenshot mode (hides
-            chrome). The captures below are the canonical demo views.
+            Cmd/Ctrl+Shift+S inside the app toggles screenshot mode (hides chrome).
+            The views below are the ones to look at first when evaluating the work.
           </p>
           <ul className="text-xs text-text-1 space-y-1.5">
             {CAPTURES.map((c) => (
@@ -158,52 +154,19 @@ export function Press() {
         </Card>
       </section>
 
-      {/* Author bio + contact */}
-      <section>
-        <h2 className="text-sm font-semibold text-text-1 uppercase tracking-wider mb-3">
-          Author
-        </h2>
-        <Card className="p-4">
-          <CardTitle>Ian Kleimans</CardTitle>
-          <p className="text-sm text-text-2 leading-relaxed mt-2">
-            Industrial Engineering at Purdue, focused on the quantitative and AI
-            side of commodity infrastructure. Inaugural Lilly AI Fellow (June
-            2026). Previously shipped Compute Tracker (8K+ monthly users tracking
-            GPU infrastructure), PrintLocal (peer-to-peer 3D printing
-            marketplace), and an Amazon Operations Engineering Firebase portal
-            handling 120K packages/day across 150+ associates with an 85%
-            scheduling-time reduction. Trilingual (English, Spanish, Russian).
-            Originally from Campana, Argentina.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
-            <a
-              href="https://battery-market-maker.vercel.app"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-accent hover:underline"
-            >
-              <Globe size={12} /> battery-market-maker.vercel.app
-            </a>
-            <a
-              href="https://github.com/IanKleimans/Battery-market-maker"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-accent hover:underline"
-            >
-              <GitFork size={12} /> source
-            </a>
-            <a
-              href="mailto:kleimansian@gmail.com"
-              className="inline-flex items-center gap-1 text-accent hover:underline"
-            >
-              <Mail size={12} /> kleimansian@gmail.com
-            </a>
-            <Link to="/about" className="inline-flex items-center gap-1 text-accent hover:underline">
-              <ExternalLink size={12} /> methodology
-            </Link>
-          </div>
-        </Card>
-      </section>
+      <footer className="pt-2 flex flex-wrap items-center gap-3 text-xs">
+        <a
+          href="https://github.com/IanKleimans/Battery-market-maker"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-accent hover:underline"
+        >
+          <GitFork size={12} /> source
+        </a>
+        <Link to="/about" className="inline-flex items-center gap-1 text-accent hover:underline">
+          <ExternalLink size={12} /> methodology
+        </Link>
+      </footer>
     </div>
   )
 }
